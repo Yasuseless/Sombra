@@ -15,19 +15,19 @@ Registrar, facilitar, localizar e simplificar.
 ### versão 0.2
 - [x] Reconhecimento de "Analistas"
 
-### Versão 0.3
+### versão 0.3
 - [x] Histórico de consultas
 - [x] Desenvolvimento do fluxograma
 - [x] Correlação dos envolvidos no formato de organograma
 
-### Versão 0.4
+### versão 0.4
 - [x] Anotações, data de atendimento, assunto e meio de comunicação descritos
 
-### Versão 0.5
+### versão 0.5
 - [x] Customização de interface (Modo escuro e claro)
 - [x] Integração da tela de login inicial
 
-### Versão 0.6
+### versão 0.6
 - [x] Aditamento do login de supervisor 
 - [x] Implantação dos gráficos com base nas consultas e suas volumetrias individuais
 - [x] Resultado por analista (individual)
@@ -35,14 +35,14 @@ Registrar, facilitar, localizar e simplificar.
 - [x] Exibição do gráfico no formato .CSV para futuros processos de ETL
 - [x] Atualização do número de atendimentos, média por analista e porcentagem de assuntos tratados
 
-### Versão 0.7
+### versão 0.7
 - [ ] Possível integração com Salesforce (CRM origem)
 
-### Versão 0.8
+### versão 0.8
 - [ ] Configuração do banco de dados para armazenamento das informações em paralelo com o CRM origem
 
-### Versão 0.9
+### versão 0.9
 - [ ] Painel lateral para comunicações internas entre analistas em uma determinada "Offer"
 
-## Versão 1.0
+## versão 1.0
 - [ ] Logotipo no cabeçalho 
