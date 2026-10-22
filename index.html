@@ -1,0 +1,1874 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#EEF1F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10161D" media="(prefers-color-scheme: dark)">
+<title>Consulta de atendimentos</title>
+<script>try{var t=localStorage.getItem("qa_dashboard_tema");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#EEF1F4; --surface:#FFFFFF; --surface-2:#F5F7F9;
+  --ink:#16202B; --muted:#5B6875; --line:#CBD3DC; --line-strong:#9AA7B4;
+  --primary:#2B4C7E; --primary-ink:#FFFFFF;
+  --sim:#1E7A4F; --sim-bg:#E1F2EA;
+  --nao:#B4432F; --nao-bg:#FBE9E4;
+
+  --origem-crm:#0F7C8C; --origem-crm-bg:#DBF2F1;
+  --origem-manual:#8A5A16; --origem-manual-bg:#F7E9CF;
+
+  --tema:#6A4C93; --tema-bg:#EAE2F5;
+
+  --analista:#155E75; --analista-bg:#DCEEF5;
+  --focus:#2B4C7E;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10161D; --surface:#18212B; --surface-2:#1F2A36;
+    --ink:#E8EDF2; --muted:#93A0AE; --line:#2C3845; --line-strong:#4B5B6B;
+    --primary:#7FA6DD; --primary-ink:#0E1620;
+    --sim:#4CC38A; --sim-bg:#15342A;
+    --nao:#F08A76; --nao-bg:#3A2320;
+    --origem-crm:#5FC9D6; --origem-crm-bg:#123236;
+    --origem-manual:#E0AE5C; --origem-manual-bg:#3A2C10;
+    --tema:#BBA3E6; --tema-bg:#2C2340;
+    --analista:#67C3E0; --analista-bg:#132C38;
+    --focus:#7FA6DD;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10161D; --surface:#18212B; --surface-2:#1F2A36;
+  --ink:#E8EDF2; --muted:#93A0AE; --line:#2C3845; --line-strong:#4B5B6B;
+  --primary:#7FA6DD; --primary-ink:#0E1620;
+  --sim:#4CC38A; --sim-bg:#15342A;
+  --nao:#F08A76; --nao-bg:#3A2320;
+  --origem-crm:#5FC9D6; --origem-crm-bg:#123236;
+  --origem-manual:#E0AE5C; --origem-manual-bg:#3A2C10;
+  --tema:#BBA3E6; --tema-bg:#2C2340;
+  --analista:#67C3E0; --analista-bg:#132C38;
+  --focus:#7FA6DD;
+}
+*,*::before,*::after{box-sizing:border-box}
+:root{color-scheme:light dark}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px);min-height:100%;background:var(--bg)}
+body{
+  margin:0; min-height:100vh; min-height:100dvh; background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:15px; line-height:1.5;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.app{max-width:1200px;margin:0 auto;padding:24px 20px 48px}
+
+.top{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-0.01em}
+.sub{margin:4px 0 0;color:var(--muted);max-width:52ch}
+.search{display:flex;gap:8px;flex-wrap:wrap}
+.search label{display:block;width:100%;font-size:13px;font-weight:500;color:var(--muted)}
+.search input{
+  width:340px;max-width:100%;padding:10px 12px;border:1.5px solid var(--line-strong);border-radius:8px;
+  background:var(--surface);font-weight:600;letter-spacing:0.02em
+}
+.search input::placeholder{letter-spacing:0;font-weight:400;color:var(--muted)}
+.btn{
+  padding:10px 16px;border:0;border-radius:8px;background:var(--primary);color:var(--primary-ink);
+  font-weight:600;cursor:pointer
+}
+.btn:hover{filter:brightness(1.08)}
+.hints{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 20px;color:var(--muted);font-size:13px}
+.chip-btn{
+  border:1px solid var(--line-strong);background:transparent;border-radius:999px;padding:3px 10px;cursor:pointer;
+  font-weight:600;letter-spacing:0.02em
+}
+.chip-btn:hover{background:var(--surface-2)}
+
+.offer-head{
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;
+  display:flex;flex-wrap:wrap;gap:12px 32px;align-items:center;justify-content:space-between;margin-bottom:16px
+}
+.offer-code{font-size:22px;font-weight:700;letter-spacing:0.03em;overflow-wrap:anywhere}
+.offer-meta{color:var(--muted);margin:2px 0 0}
+.progress{min-width:220px}
+.progress strong{font-size:15px}
+.segs{display:flex;gap:4px;margin-top:8px}
+.seg{height:8px;flex:1;border-radius:2px;background:var(--nao)}
+.seg.ok{background:var(--sim)}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+.flow-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+.flow-title{margin:0 0 16px;font-size:14px;font-weight:600;color:var(--muted)}
+.flow{position:relative}
+.wires{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.wires path{fill:none;stroke-width:2;stroke-linecap:round}
+.wires path.ok{stroke:var(--sim)}
+.wires path.no{stroke:var(--nao);stroke-dasharray:5 5}
+
+.offer-node{
+  position:relative;z-index:1;margin:0 auto 44px;width:max-content;max-width:100%;
+  background:var(--primary);color:var(--primary-ink);border-radius:8px;padding:10px 20px;text-align:center
+}
+.offer-node .c{font-weight:700;letter-spacing:0.03em;overflow-wrap:anywhere}
+
+.cols{position:relative;z-index:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:start}
+.col{display:flex;flex-direction:column;gap:28px}
+.ext{display:flex;flex-direction:column;gap:12px;margin-left:28px}
+
+.node{
+  display:block;width:100%;text-align:left;cursor:pointer;
+  background:var(--surface);border:1.5px solid var(--line);border-left-width:6px;border-radius:8px;padding:10px 12px
+}
+.node.ok{border-left-color:var(--sim)}
+.node.no{border-left-color:var(--nao)}
+.node:hover{background:var(--surface-2)}
+.node[aria-pressed="true"]{border-color:var(--primary);border-left-color:var(--primary);box-shadow:0 0 0 2px var(--primary)}
+.node .role{display:block;font-size:12.5px;color:var(--muted);font-weight:500}
+.node .name{display:block;font-weight:600;overflow-wrap:anywhere}
+.badge{
+  display:inline-flex;gap:6px;align-items:center;margin-top:6px;padding:2px 8px;border-radius:4px;font-size:12.5px;font-weight:600
+}
+.badge.ok{background:var(--sim-bg);color:var(--sim)}
+.badge.no{background:var(--nao-bg);color:var(--nao)}
+.role-node .name{font-size:16px}
+
+.add-node{
+  display:block;width:100%;text-align:left;cursor:pointer;background:transparent;color:var(--primary);
+  border:1.5px dashed var(--line-strong);border-radius:8px;padding:10px 12px;font-weight:600
+}
+.add-node:hover{background:var(--surface-2)}
+.add-node[aria-pressed="true"]{border-style:solid;border-color:var(--primary);box-shadow:0 0 0 2px var(--primary)}
+.add-node .cont{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+.add-limit{margin:0;color:var(--muted);font-size:13px;padding:2px 2px}
+
+.detail{
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;
+  position:sticky;top:calc(16px + env(safe-area-inset-top,0px))
+}
+.detail h2{margin:0;font-size:19px}
+.detail .who{color:var(--muted);margin:2px 0 14px}
+.answer{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:8px;margin-bottom:16px
+}
+.answer.ok{background:var(--sim-bg);color:var(--sim)}
+.answer.no{background:var(--nao-bg);color:var(--nao)}
+.answer .big{font-size:26px;font-weight:700;line-height:1}
+.answer .q{font-size:13.5px;font-weight:500}
+.detail h3{margin:16px 0 6px;font-size:13.5px;font-weight:600;color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{background:var(--tema-bg);color:var(--tema);border-radius:999px;padding:2px 10px;font-size:13px;font-weight:600}
+.tag.person{background:var(--analista-bg);color:var(--analista);font-weight:500}
+.hist{list-style:none;margin:0;padding:0}
+.hist li{position:relative;padding:0 0 16px 18px;border-left:2px solid var(--line);margin-left:5px}
+.hist li:last-child{padding-bottom:0}
+.hist li::before{
+  content:"";position:absolute;left:-7px;top:4px;width:12px;height:12px;border-radius:50%;
+  background:var(--primary);border:2px solid var(--surface)
+}
+.hist .when{font-weight:600}
+.hist .origin-line{margin:4px 0}
+.hist .meta{color:var(--muted);font-size:13px;margin-top:4px}
+.hist p{margin:4px 0 0}
+.empty{color:var(--muted);margin:0}
+.notice{
+  margin-top:20px;padding:10px 12px;border:1px dashed var(--line-strong);border-radius:8px;
+  color:var(--muted);font-size:13px
+}
+.altform{display:grid;gap:14px}
+.field label{display:block;font-weight:600;font-size:13.5px;margin-bottom:4px}
+.field .opt{font-weight:400;color:var(--muted)}
+.field input{
+  width:100%;padding:9px 11px;border:1.5px solid var(--line-strong);border-radius:8px;background:var(--surface)
+}
+.field input[aria-invalid="true"]{border-color:var(--nao)}
+.field .err{margin:4px 0 0;color:var(--nao);font-size:13px}
+.form-err{margin:0;padding:10px 12px;border-radius:8px;background:var(--nao-bg);color:var(--nao);font-size:13.5px}
+.callout{margin:0 0 14px;padding:10px 12px;border-radius:6px;background:var(--surface-2);border-left:4px solid var(--primary);font-size:13.5px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn.secondary{background:transparent;color:var(--ink);border:1.5px solid var(--line-strong)}
+.btn[disabled]{opacity:.6;cursor:default}
+.userbar{display:flex;gap:12px;align-items:center;justify-content:flex-end;flex-wrap:wrap;margin-bottom:12px;font-size:14px;color:var(--muted)}
+.userbar strong{color:var(--ink)}
+.userbar .btn{padding:5px 12px;font-size:13.5px}
+.login-wrap{max-width:440px;margin:0 auto;padding:12vh 20px 40px}
+.login-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:24px}
+.login-card h1{font-size:22px}
+.login-card .sub{margin-bottom:18px}
+.login-card .btn{width:100%}
+.demo-note{margin:16px 0 0;padding:10px 12px;border:1px dashed var(--line-strong);border-radius:8px;font-size:13px;color:var(--muted)}
+.demo-note code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:var(--ink);overflow-wrap:anywhere}
+.regbar{margin:0 0 16px;display:flex;gap:8px;flex-wrap:wrap}
+.field select,.field textarea{
+  width:100%;padding:9px 11px;border:1.5px solid var(--line-strong);border-radius:8px;background:var(--surface)
+}
+.field textarea{resize:vertical;min-height:110px;line-height:1.45}
+.field select[aria-invalid="true"],.field textarea[aria-invalid="true"]{border-color:var(--nao)}
+.field .count{margin:4px 0 0;color:var(--muted);font-size:12.5px;text-align:right}
+.src{font-size:12px;font-weight:600;padding:1px 10px;border-radius:999px;background:var(--origem-crm-bg);color:var(--origem-crm);white-space:nowrap}
+.src.man{background:var(--origem-manual-bg);color:var(--origem-manual)}
+.analista-badge{display:inline-flex;font-weight:500;font-size:12px;padding:1px 10px;border-radius:999px;background:var(--analista-bg);color:var(--analista);white-space:nowrap}
+.hist .txt{white-space:pre-line}
+.hist .tags{margin:4px 0}
+.hist .origin-line .src{margin:0}
+.temas{border:0;margin:0;padding:0;min-width:0}
+.temas legend{padding:0;margin-bottom:6px;font-weight:600;font-size:13.5px}
+.temas .opt{font-weight:400;color:var(--muted)}
+.tema-lista{display:flex;flex-wrap:wrap;gap:8px}
+.tema-op{position:relative;display:inline-block}
+.tema-op input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.tema-op span{display:inline-block;padding:5px 12px;border:1.5px solid var(--line-strong);border-radius:999px;font-size:13.5px;background:var(--surface);cursor:pointer}
+.tema-op:hover span{background:var(--surface-2)}
+.tema-op input:checked + span{background:var(--primary);border-color:var(--primary);color:var(--primary-ink);font-weight:600}
+.tema-op input:focus-visible + span{outline:3px solid var(--focus);outline-offset:2px}
+.temas[aria-invalid="true"] .tema-op span{border-color:var(--nao)}
+.msg{
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:28px 20px;text-align:center
+}
+.msg strong{display:block;margin-bottom:4px}
+.picks{display:grid;gap:8px;margin:16px auto 0;max-width:520px;text-align:left}
+.sidebar-recentes{
+  display:none; position:fixed; left:16px; top:calc(16px + env(safe-area-inset-top,0px));
+  bottom:16px; width:220px; overflow-y:auto;
+  background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px
+}
+.sidebar-recentes h3{margin:0 0 12px;font-size:13px;font-weight:600;color:var(--muted)}
+.sidebar-recentes .recent-list{display:grid;gap:8px}
+.sidebar-recentes .vazio{margin:0;color:var(--muted);font-size:13px}
+
+@media (min-width:1760px){
+  .sidebar-recentes.ativa{display:block}
+}
+.pick{
+  display:block;width:100%;text-align:left;cursor:pointer;background:var(--surface);
+  border:1.5px solid var(--line-strong);border-radius:8px;padding:10px 12px
+}
+.pick:hover{background:var(--surface-2)}
+.pick .code{display:block;font-weight:700;overflow-wrap:anywhere}
+.pick .info{display:block;color:var(--muted);font-size:13.5px}
+.pick[aria-current="true"]{border-color:var(--primary);background:var(--surface-2)}
+.pick[aria-current="true"] .code::after{content:" (atual)";font-weight:400;color:var(--muted)}
+
+.sup-grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+.sup-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+.sup-table-wrap{overflow-x:auto}
+.sup-table{width:100%;border-collapse:collapse;font-size:14px;white-space:nowrap}
+.sup-table th{text-align:left;color:var(--muted);font-weight:600;font-size:12.5px;padding:6px 8px;border-bottom:1px solid var(--line)}
+.sup-table td{padding:8px}
+.sup-table tbody tr{cursor:pointer;border-bottom:1px solid var(--line)}
+.sup-table tbody tr:hover td{background:var(--surface-2)}
+.sup-table tbody tr[aria-current="true"] td{background:var(--surface-2);font-weight:600}
+.onda-filtros{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.onda-filtros .field{min-width:150px;margin:0}
+.onda-presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.tipo-grafico{display:flex;gap:6px;margin-top:16px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tipo-grafico-op{border:1px solid var(--line-strong);background:var(--surface);border-radius:999px;padding:5px 14px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--muted)}
+.tipo-grafico-op:hover{background:var(--surface-2)}
+.tipo-grafico-op[aria-pressed="true"]{background:var(--primary);color:var(--primary-ink);border-color:var(--primary)}
+.pizza-wrap{display:flex;gap:24px;align-items:center;flex-wrap:wrap;justify-content:center}
+.pizza-legend{display:grid;gap:8px}
+.pizza-legend .onda-chip{font-size:13.5px}
+.onda-total{margin:14px 0 0;font-weight:600}
+.onda-wrap{margin-top:10px}
+.onda-vazio{color:var(--muted);font-size:13.5px;padding:30px 0;text-align:center}
+.onda-eixo{fill:var(--muted);font-size:10.5px}
+.onda-linha{transition:opacity .3s ease}
+.onda-grupo.onda-destacando .onda-linha{opacity:.25}
+.onda-grupo.onda-destacando .onda-linha.onda-area-ativa{opacity:1}
+.onda-ponto-linha{opacity:.9}
+.onda-serie{opacity:0;cursor:pointer;transition:opacity .6s ease}
+.onda-serie.onda-serie-visivel{opacity:1}
+.onda-grupo.onda-destacando .onda-serie.onda-serie-visivel{opacity:.22}
+.onda-grupo.onda-destacando .onda-serie.onda-area-ativa.onda-serie-visivel{opacity:1}
+.onda-svg-escura{border-radius:10px}
+.onda-eixo-escuro{fill:#AAB4C8;font-size:11px}
+.onda-legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px}
+.onda-chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:default}
+.onda-dot{width:10px;height:10px;border-radius:3px;flex:none}
+.sup-atd{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.sup-atd li{border-left:3px solid var(--line-strong);padding:4px 0 4px 12px}
+.sup-atd .when{font-weight:600}
+.sup-atd .meta{color:var(--muted);font-size:13px;margin:2px 0}
+@media (max-width:980px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .detail{position:static}
+  .sup-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:720px){
+  .app{padding:16px 14px 40px}
+  .cols{grid-template-columns:minmax(0,1fr);gap:24px}
+  .offer-node{margin:0 0 28px;width:100%;text-align:left}
+  .col{margin-left:28px;gap:16px}
+}
+.tema-toggle{padding:6px 10px;font-size:15px;line-height:1}
+.toast-container{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:1000;max-width:320px}
+.toast{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--sim);border-radius:8px;padding:10px 14px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:13.5px;color:var(--ink)}
+.toast.erro{border-left-color:var(--nao)}
+.toast-saindo{animation:toast-saida .25s ease forwards}
+@keyframes toast-saida{to{opacity:0;transform:translateY(6px)}}
+.copiar-offer{border:1px solid var(--line-strong);background:var(--surface);border-radius:6px;padding:2px 8px;font-size:13px;cursor:pointer;color:var(--muted);margin-left:8px}
+.copiar-offer:hover{background:var(--surface-2)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kpi-card .valor{font-size:22px;font-weight:700;display:block}
+.kpi-card .rotulo{color:var(--muted);font-size:12.5px}
+.comparar-campo{display:flex;align-items:center;gap:6px;font-size:13.5px;margin-top:10px}
+.comparar-campo input{accent-color:var(--primary)}
+.skeleton-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+.skeleton-linha{height:14px;border-radius:4px;margin-bottom:12px;background:linear-gradient(90deg,var(--surface-2) 25%,var(--line) 37%,var(--surface-2) 63%);background-size:400px 100%;animation:shimmer 1.4s ease infinite}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.resumo-semana{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin-top:16px;max-width:520px;text-align:left}
+.resumo-semana h3{margin:0 0 6px;font-size:14px}
+.resumo-semana p{margin:0;color:var(--muted);font-size:13.5px}
+@keyframes entrada-suave{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes zoom-suave{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+.anim-entrada{animation:entrada-suave .32s cubic-bezier(.16,.84,.44,1) both}
+.anim-zoom{animation:zoom-suave .3s cubic-bezier(.16,.84,.44,1) both}
+.node,.pick,.add-node,.tipo-grafico-op,.chip-btn,#sup-tabela tbody tr,.onda-chip{transition:transform .15s ease,box-shadow .15s ease}
+.node:hover,.pick:hover,.add-node:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.14)}
+.node:active,.pick:active,.add-node:active,.btn:active,.chip-btn:active,.tipo-grafico-op:active{transform:scale(.97)}
+#sup-tabela tbody tr:hover{transform:translateX(2px)}
+.btn,.chip-btn,.tipo-grafico-op{transition:transform .12s ease,box-shadow .15s ease,background .15s ease,color .15s ease}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<main class="login-wrap" id="login" hidden>
+  <div class="login-card">
+    <h1>Consulta de atendimentos</h1>
+    <p class="sub">Entre com o seu e-mail corporativo para consultar e registrar atendimentos.</p>
+    <form class="altform" id="form-login" autocomplete="on" novalidate>
+      <div class="field">
+        <label for="login-email">E-mail</label>
+        <input id="login-email" name="email" type="email" inputmode="email" autocomplete="username" placeholder="sobrenome.nome@webhelpbr.com.br" maxlength="120" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="login-senha">Senha</label>
+        <input id="login-senha" name="senha" type="password" autocomplete="current-password" maxlength="200">
+      </div>
+      <p class="form-err" id="login-erro" role="alert" hidden></p>
+      <button class="btn" type="submit" id="login-btn">Entrar</button>
+    </form>
+    <p class="demo-note">Demonstração: use <code>matrix@webhelpbr.com.br</code>, com a senha <code>Neo@2026</code>. Na versão real, o login usaria o acesso corporativo, sem senha guardada no dashboard.</p>
+  </div>
+</main>
+
+<aside class="sidebar-recentes" id="sidebar-recentes">
+  <h3>Offers consultadas recentemente</h3>
+  <div class="recent-list" id="sidebar-recent-list"></div>
+</aside>
+
+<div class="app" id="app" hidden>
+  <div class="userbar">
+    <span><span id="app-papel-label">Analista</span>: <strong id="u-nome"></strong></span>
+    <button class="btn secondary tema-toggle" type="button" title="Alternar tema"></button>
+    <button class="btn secondary" type="button" id="app-ir-supervisor" hidden>Painel do Supervisor</button>
+    <button class="btn secondary" type="button" id="sair">Sair</button>
+  </div>
+  <div class="top">
+    <div>
+      <h1>Consulta de atendimentos</h1>
+      <p class="sub">Veja quem já foi atendido no processo, por quem e o que foi conversado.</p>
+    </div>
+    <form class="search" id="form" autocomplete="off">
+      <label for="busca">Offer, ID do imóvel, telefone, e-mail ou CPF</label>
+      <input id="busca" name="busca" type="text" placeholder="Ex.: Db0ZHelOoxLY3Inr3ZCU ou 890250358" maxlength="80" spellcheck="false">
+      <button class="btn" type="submit">Buscar</button>
+    </form>
+  </div>
+  <p class="hints">Dados fictícios para demonstração. Exemplos de busca:
+    <button class="chip-btn" data-q="Db0ZHelOoxLY3Inr3ZCU" type="button">Db0ZHelOoxLY3Inr3ZCU</button>
+    <button class="chip-btn" data-q="890250358" type="button">890250358</button>
+    <button class="chip-btn" data-q="+55119****4321" type="button">+55119****4321</button>
+    <button class="chip-btn" data-q="mari****es@exemplo.com" type="button">mari****es@exemplo.com</button>
+    <button class="chip-btn" data-q="***.982.247-**" type="button">***.982.247-**</button>
+  </p>
+  <div id="result" aria-live="polite"></div>
+</div>
+
+<div class="app" id="supervisor" hidden>
+  <div class="userbar">
+    <span>Supervisor: <strong id="sup-nome"></strong></span>
+    <button class="btn secondary tema-toggle" type="button" title="Alternar tema"></button>
+    <button class="btn secondary" type="button" id="sup-ir-offers">Consultar Offers</button>
+    <button class="btn secondary" type="button" id="sup-sair">Sair</button>
+  </div>
+  <div class="top">
+    <div>
+      <h1>Painel do Supervisor</h1>
+      <p class="sub">Volume de atendimentos por tema e o que cada Analista já atendeu.</p>
+    </div>
+  </div>
+  <div class="kpis" id="sup-kpis"></div>
+  <div class="sup-grid">
+    <div>
+      <div class="sup-card">
+        <h3 style="margin:0 0 4px">Volumetria de atendimentos</h3>
+        <p class="sub" style="margin:0 0 14px">Escolha um assunto e um período para comparar.</p>
+        <div class="onda-filtros">
+          <div class="field">
+            <label for="sup-tema">Assunto</label>
+            <select id="sup-tema"></select>
+          </div>
+          <div class="field">
+            <label for="sup-data-ini">De</label>
+            <input id="sup-data-ini" type="date">
+          </div>
+          <div class="field">
+            <label for="sup-data-fim">Até</label>
+            <input id="sup-data-fim" type="date">
+          </div>
+          <button class="btn" type="button" id="sup-aplicar">Aplicar</button>
+        </div>
+        <div class="onda-presets">
+          <button class="chip-btn" type="button" data-preset="7">Últimos 7 dias</button>
+          <button class="chip-btn" type="button" data-preset="30">Último mês</button>
+          <button class="chip-btn" type="button" data-preset="tudo">Todo o período</button>
+          <button class="chip-btn" type="button" id="sup-exportar">Exportar CSV</button>
+        </div>
+        <label class="comparar-campo">
+          <input type="checkbox" id="sup-comparar">
+          Comparar com o período anterior (gráfico em linha)
+        </label>
+        <div class="tipo-grafico" id="tipo-grafico" role="tablist">
+          <button class="tipo-grafico-op" type="button" data-tipo="pizza" aria-pressed="false">Pizza</button>
+          <button class="tipo-grafico-op" type="button" data-tipo="linha" aria-pressed="false">Linha</button>
+          <button class="tipo-grafico-op" type="button" data-tipo="ondas" aria-pressed="true">Ondas</button>
+        </div>
+        <p class="onda-total" id="onda-total"></p>
+        <div class="onda-wrap" id="onda-wrap"></div>
+        <div class="onda-legend" id="onda-legend"></div>
+      </div>
+      <div class="sup-card" style="margin-top:16px">
+        <h3 style="margin:0 0 12px">Analistas</h3>
+        <div class="sup-table-wrap">
+          <table class="sup-table">
+            <thead>
+              <tr><th>Analista</th><th>Total</th><th>Dashboard</th><th>Salesforce</th><th>Último</th></tr>
+            </thead>
+            <tbody id="sup-tabela"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <aside class="detail" id="sup-detail">
+      <p class="empty">Selecione um Analista para ver os atendimentos.</p>
+    </aside>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+<script>
+
+const $ = (s, r=document) => r.querySelector(s);
+function animar(elemento, classe){
+  if (!elemento) return;
+  elemento.classList.remove(classe);
+  void elemento.offsetWidth;
+  elemento.classList.add(classe);
+}
+
+function toast(texto, tipo){
+  const cont = document.getElementById("toast-container");
+  if (!cont) return;
+  const item = document.createElement("div");
+  item.className = "toast anim-entrada" + (tipo === "erro" ? " erro" : "");
+  item.textContent = texto;
+  cont.appendChild(item);
+  setTimeout(() => {
+    item.classList.add("toast-saindo");
+    setTimeout(() => item.remove(), 260);
+  }, 2800);
+}
+
+function temaAtual(){
+  try{ return localStorage.getItem("qa_dashboard_tema") || "auto"; } catch (e){ return "auto"; }
+}
+
+function atualizarBotoesTema(){
+  const modo = temaAtual();
+  const rotulo = modo === "dark" ? "☀️ Tema claro" : modo === "light" ? "🌙 Tema escuro" : "🌓 Tema automático";
+  document.querySelectorAll(".tema-toggle").forEach(b => { b.textContent = rotulo; });
+}
+
+function aplicarTema(modo){
+  if (modo === "light" || modo === "dark") document.documentElement.setAttribute("data-theme", modo);
+  else document.documentElement.removeAttribute("data-theme");
+  try{ localStorage.setItem("qa_dashboard_tema", modo); } catch (e){}
+  atualizarBotoesTema();
+}
+
+function alternarTema(){
+  const atual = temaAtual();
+  aplicarTema(atual === "auto" ? "dark" : atual === "dark" ? "light" : "auto");
+}
+
+async function copiarTexto(texto, botao){
+  try{
+    await navigator.clipboard.writeText(texto);
+    toast("Copiado: " + texto);
+    if (botao){ const original = botao.textContent; botao.textContent = "Copiado!"; setTimeout(() => { botao.textContent = original; }, 1500); }
+  } catch (e){
+    toast("Não foi possível copiar.", "erro");
+  }
+}
+
+function mostrarEsqueleto(){
+  const out = $("#result"); out.replaceChildren();
+  const card = el("div","skeleton-card");
+  [60, 90, 75, 100, 40].forEach(pct => {
+    const linha = el("div","skeleton-linha");
+    linha.style.width = pct + "%";
+    card.append(linha);
+  });
+  out.append(card);
+  animar(out, "anim-entrada");
+}
+
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+const fmtData = iso => new Date(iso + "T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"});
+const atendido = c => c.atendimentos.length > 0;
+const rotulo = { comprador:"Comprador", vendedor:"Vendedor", corretor:"Executivo de Negociação", alternativo:"Contato alternativo" };
+const LIMITE_ALTERNATIVOS = 3;
+const LIMITES_POR_PAPEL = { corretor: 1 };
+function limiteAlternativos(papel){ return LIMITES_POR_PAPEL[papel] || LIMITE_ALTERNATIVOS; }
+
+function rotuloContato(c){
+  return c.papel === "alternativo" ? (c.classificacao || "Contato alternativo") : rotulo[c.papel];
+}
+function descricaoContato(c, pai){
+  if (!pai) return rotulo[c.papel];
+  return (c.classificacao ? c.classificacao + " · contato alternativo de " : "Contato alternativo de ") + pai.nome;
+}
+let atual = null;
+let sessao = null;
+
+const CHAVE_RECENTES = "qa_dashboard_offers_recentes";
+const MAX_RECENTES = 8;
+
+const OFFERS_SEED_RECENTES = [
+  { offer: "6wJ4Le7vxV25IHKPoc1T", imovel: "Apartamento 3 quartos · Savassi, Belo Horizonte", minutosAtras: 6 },
+  { offer: "tDui4mlmzJPKzC05ZgD1", imovel: "Casa 4 quartos · Moinhos de Vento, Porto Alegre", minutosAtras: 22 },
+  { offer: "BO5J2YceznSvPubv47cA", imovel: "Apartamento 1 quarto · Boa Viagem, Recife", minutosAtras: 47 },
+  { offer: "6g8XZVLI5cfQmytAhZad", imovel: "Cobertura 3 quartos · Asa Sul, Brasília", minutosAtras: 90 },
+  { offer: "txAWWSYWGH0jq3eyH223", imovel: "Apartamento 2 quartos · Vila Madalena, São Paulo", minutosAtras: 150 },
+  { offer: "fdbTPlX31iIGXwjsVFj3", imovel: "Casa 3 quartos · Jardim Botânico, Rio de Janeiro", minutosAtras: 240 },
+];
+
+function lerRecentes(){
+  try{
+    const bruto = localStorage.getItem(CHAVE_RECENTES);
+    if (bruto === null){
+      const agora = Date.now();
+      const semente = OFFERS_SEED_RECENTES.map(x => ({
+        offer: x.offer, imovel: x.imovel,
+        quando: new Date(agora - x.minutosAtras * 60000).toISOString()
+      }));
+      localStorage.setItem(CHAVE_RECENTES, JSON.stringify(semente));
+      return semente;
+    }
+    const lista = JSON.parse(bruto);
+    return Array.isArray(lista) ? lista : [];
+  } catch (e){ return []; }
+}
+
+function registrarRecente(offer, imovel){
+  try{
+    const lista = [{ offer, imovel, quando: new Date().toISOString() }]
+      .concat(lerRecentes().filter(x => x.offer !== offer))
+      .slice(0, MAX_RECENTES);
+    localStorage.setItem(CHAVE_RECENTES, JSON.stringify(lista));
+  } catch (e){}
+}
+
+function tempoRelativo(iso){
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "agora há pouco";
+  if (min < 60) return "há " + min + " min";
+  const h = Math.round(min / 60);
+  if (h < 24) return "há " + h + "h";
+  const d = Math.round(h / 24);
+  return "há " + d + " dia" + (d === 1 ? "" : "s");
+}
+
+function nodeRecente(item){
+  const b = el("button","pick"); b.type = "button";
+  b.append(el("span","code",item.offer), el("span","info", item.imovel + " · " + tempoRelativo(item.quando)));
+  b.addEventListener("click", () => abrirOffer(item.offer, null).catch(falhaConsulta));
+  return b;
+}
+
+function atualizarSidebarRecentes(){
+  const cont = document.getElementById("sidebar-recent-list");
+  if (!cont) return;
+  cont.replaceChildren();
+  const lista = lerRecentes();
+  if (!lista.length){
+    cont.append(el("p","vazio","Nenhuma Offer consultada ainda."));
+    return;
+  }
+  lista.forEach(item => {
+    const b = nodeRecente(item);
+    if (atual && item.offer === atual.cod) b.setAttribute("aria-current","true");
+    cont.append(b);
+  });
+  animar(cont, "anim-entrada");
+}
+
+async function chamar(url, opcoes){
+  const r = await fetch(url, { credentials: "same-origin", ...opcoes });
+  if (r.status === 401){
+    mostrarLogin("Sua sessão expirou. Entre novamente.");
+    throw new Error("sessão expirada");
+  }
+  return r;
+}
+
+function mostrarLogin(aviso){
+  sessao = null; atual = null;
+  $("#app").hidden = true;
+  $("#supervisor").hidden = true;
+  $("#sidebar-recentes").classList.remove("ativa");
+  $("#login").hidden = false;
+  $("#result").replaceChildren();
+  const erro = $("#login-erro");
+  erro.textContent = aviso || ""; erro.hidden = !aviso;
+  $("#login-senha").value = "";
+  $("#login-email").focus();
+  animar($("#login"), "anim-zoom");
+}
+
+function mostrarApp(){
+  $("#supervisor").hidden = true;
+  $("#app").hidden = false;
+  $("#sidebar-recentes").classList.add("ativa");
+  $("#app-papel-label").textContent = sessao.papel === "supervisor" ? "Supervisor" : "Analista";
+  $("#app-ir-supervisor").hidden = sessao.papel !== "supervisor";
+  $("#u-nome").textContent = sessao.nome;
+  animar($("#app"), "anim-zoom");
+}
+
+function mostrarPainelSupervisor(){
+  $("#app").hidden = true;
+  $("#sidebar-recentes").classList.remove("ativa");
+  $("#supervisor").hidden = false;
+  $("#sup-nome").textContent = sessao.nome;
+  animar($("#supervisor"), "anim-zoom");
+}
+
+function entrar(s){
+  sessao = s;
+  $("#login").hidden = true;
+  if (s.papel === "supervisor"){
+    mostrarPainelSupervisor();
+    carregarSupervisor();
+    return;
+  }
+  mostrarApp();
+  $("#busca").value = "";
+  telaInicial();
+  atualizarSidebarRecentes();
+  $("#busca").focus();
+}
+
+async function iniciar(){
+  try{
+    const r = await fetch("/api/sessao", { credentials: "same-origin" });
+    const s = await r.json();
+    if (s.logado){ entrar(s); return; }
+  } catch (e){}
+  mostrarLogin();
+}
+
+async function telaInicial(){
+  mensagem("Digite sua busca","Informe a Offer, o ID do imóvel, o telefone, o e-mail ou o CPF do cliente.");
+  try{
+    const r = await chamar("/api/meus-atendimentos");
+    const corpo = await r.json();
+    const agora = Date.now();
+    const recentes = corpo.atendimentos.filter(a => (agora - new Date(a.data + "T12:00:00").getTime()) <= 7 * 86400000);
+    if (!recentes.length) return;
+    const contagem = {};
+    recentes.forEach(a => { contagem[a.tema] = (contagem[a.tema] || 0) + 1; });
+    const temaTopo = Object.entries(contagem).sort((a,b) => b[1] - a[1])[0][0];
+    const box = el("div","resumo-semana");
+    box.append(el("h3", null, "Seus atendimentos nesta semana"));
+    box.append(el("p", null, recentes.length + " atendimento" + (recentes.length === 1 ? "" : "s") + " nos últimos 7 dias · assunto mais frequente: " + temaTopo));
+    $("#result").append(box);
+  } catch (e){}
+}
+
+function mensagem(titulo, texto){
+  const out = $("#result"); out.replaceChildren();
+  const m = el("div","msg");
+  m.append(el("strong",null,titulo), el("span",null,texto));
+  out.append(m);
+  atual = null;
+  animar(out, "anim-entrada");
+}
+
+const naoEncontrado = {
+  offer: "Nenhuma Offer encontrada. Confira o código digitado (letras maiúsculas e minúsculas contam).",
+  imovel: "Nenhum processo encontrado para este ID de imóvel.",
+  telefone: "Nenhum processo encontrado para este telefone.",
+  email: "Nenhum processo encontrado para este e-mail.",
+  cpf: "Nenhum processo encontrado para este CPF."
+};
+
+async function abrirOffer(offer, contatoId){
+  mostrarEsqueleto();
+  const r = await chamar("/api/offers/" + encodeURIComponent(offer));
+  if (!r.ok) throw new Error("erro " + r.status);
+  const dados = await r.json();
+  atual = { cod: offer, dados };
+  registrarRecente(offer, dados.imovel);
+  atualizarSidebarRecentes();
+  renderOffer();
+  const alvo = dados.contatos.find(c => c.id === contatoId) || dados.contatos[0];
+  selecionar(alvo.id, false);
+}
+
+function escolher(lista){
+  const out = $("#result"); out.replaceChildren();
+  const m = el("div","msg");
+  m.append(el("strong",null, lista.length + " processos encontrados"), el("span",null,"Escolha qual processo abrir."));
+  const picks = el("div","picks");
+  lista.forEach(item => {
+    const b = el("button","pick"); b.type = "button";
+    b.append(el("span","code",item.offer), el("span","info", item.imovel + " · ID " + item.id_imovel));
+    if (item.contato) b.append(el("span","info","Contato localizado: " + item.contato));
+    b.addEventListener("click", () => abrirOffer(item.offer, item.contato_id).catch(falhaConsulta));
+    picks.append(b);
+  });
+  m.append(picks); out.append(m);
+  atual = null;
+  animar(out, "anim-entrada");
+}
+
+function falhaConsulta(){
+  if (!sessao) return;
+  mensagem("Não foi possível consultar","O servidor não respondeu. Confira se o app.py está rodando e tente de novo.");
+}
+
+const PALETA_ONDAS = ["#4C78A8","#F58518","#54A24B","#B279A2","#E45756","#72B7B2","#EECA3B","#FF9DA6","#9D755D","#BAB0AC","#17BECF","#8C6D31"];
+const TODOS_OS_TEMAS = "Todos os temas";
+
+function fmtDataCurta(iso){
+  return new Date(iso + "T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
+}
+
+function hojeISO(){
+  return new Date().toISOString().slice(0,10);
+}
+
+function somarDias(iso, dias){
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0,10);
+}
+
+function pathSuave(pontos){
+  if (pontos.length < 2) return "M " + pontos.map(p => p[0] + "," + p[1]).join(" L ");
+  let d = "M " + pontos[0][0] + "," + pontos[0][1];
+  for (let i = 0; i < pontos.length - 1; i++){
+    const [x0,y0] = pontos[i], [x1,y1] = pontos[i+1];
+    d += " Q " + x0 + "," + y0 + " " + (x0+x1)/2 + "," + (y0+y1)/2;
+  }
+  const u = pontos[pontos.length - 1];
+  d += " L " + u[0] + "," + u[1];
+  return d;
+}
+
+function areaSuavizada(pontosTopo, pontosBase){
+  const base = [...pontosBase].reverse();
+  return pathSuave(pontosTopo) + " " + pathSuave(base).replace(/^M/, "L") + " Z";
+}
+
+function labelBalde(balde, granularidade){
+  if (granularidade === "dia") return fmtDataCurta(balde);
+  if (granularidade === "mes"){
+    const d = new Date(balde + "-01T12:00:00");
+    return d.toLocaleDateString("pt-BR", {month:"short", year:"2-digit"});
+  }
+  const m = balde.match(/^(\d{4})-S(\d{2})$/);
+  return m ? ("Sem " + m[2] + "/" + m[1].slice(2)) : balde;
+}
+
+async function chamarSupervisor(url){
+  const r = await fetch(url, { credentials: "same-origin" });
+  if (r.status === 401){
+    mostrarLogin("Sua sessão expirou. Entre novamente.");
+    throw new Error("sessão expirada");
+  }
+  return r;
+}
+
+let tipoGrafico = "ondas";
+let ultimoGraficoDados = null;
+let ultimoGraficoComparacao = null;
+
+function totalDaSerie(serie){
+  return serie.valores.reduce((a,b) => a+b, 0);
+}
+
+function montarEixoXBase(svgNS, svg, dados, largura, altura, margemEsq, margemDir, x){
+  const n = dados.baldes.length;
+  const passoRotulo = Math.max(1, Math.ceil(n / 7));
+  dados.baldes.forEach((balde, i) => {
+    if (i % passoRotulo !== 0 && i !== n - 1) return;
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("x", x(i)); t.setAttribute("y", altura - 10);
+    t.setAttribute("text-anchor","middle"); t.setAttribute("class","onda-eixo");
+    t.textContent = labelBalde(balde, dados.granularidade);
+    svg.appendChild(t);
+  });
+}
+
+function renderGraficoOndas(dados){
+  const alvo = $("#onda-wrap"); alvo.replaceChildren();
+  const legenda = $("#onda-legend"); legenda.replaceChildren();
+
+  const largura = 760, altura = 300;
+  const margemEsq = 46, margemDir = 18, margemTopo = 28, margemBase = 38;
+  const areaLargura = largura - margemEsq - margemDir;
+  const areaAltura = altura - margemTopo - margemBase;
+  const n = dados.baldes.length;
+  const x = i => margemEsq + (n <= 1 ? areaLargura/2 : (areaLargura * i) / (n - 1));
+  const baseY = margemTopo + areaAltura;
+
+  const maxValor = Math.max(1, ...dados.series.flatMap(serie => serie.valores));
+  const escalaY = v => baseY - (v / maxValor) * areaAltura * 0.82;
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", "0 0 " + largura + " " + altura);
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.style.height = altura + "px";
+  svg.style.display = "block";
+  svg.classList.add("onda-svg-escura");
+
+  const fundo = document.createElementNS(svgNS, "rect");
+  fundo.setAttribute("x", 0); fundo.setAttribute("y", 0);
+  fundo.setAttribute("width", largura); fundo.setAttribute("height", altura);
+  fundo.setAttribute("fill", "#0B0F1A");
+  svg.appendChild(fundo);
+
+  const defs = document.createElementNS(svgNS, "defs");
+  svg.appendChild(defs);
+
+  [1, 0.5].forEach(f => {
+    const y = margemTopo + areaAltura * 0.82 * (1 - f) + (areaAltura - areaAltura * 0.82);
+    const linha = document.createElementNS(svgNS, "line");
+    linha.setAttribute("x1", margemEsq); linha.setAttribute("x2", largura - margemDir);
+    linha.setAttribute("y1", y); linha.setAttribute("y2", y);
+    linha.setAttribute("stroke", "rgba(255,255,255,.18)");
+    svg.appendChild(linha);
+    const rotulo = document.createElementNS(svgNS, "text");
+    rotulo.setAttribute("x", margemEsq - 10); rotulo.setAttribute("y", y + 4);
+    rotulo.setAttribute("text-anchor","end"); rotulo.setAttribute("class","onda-eixo-escuro");
+    rotulo.textContent = Math.round(maxValor * f);
+    svg.appendChild(rotulo);
+  });
+
+  const passoRotulo = Math.max(1, Math.ceil(n / 7));
+  dados.baldes.forEach((balde, i) => {
+    if (i % passoRotulo !== 0 && i !== n - 1) return;
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("x", x(i)); t.setAttribute("y", altura - 12);
+    t.setAttribute("text-anchor","middle"); t.setAttribute("class","onda-eixo-escuro");
+    t.textContent = labelBalde(balde, dados.granularidade);
+    svg.appendChild(t);
+  });
+
+  const grupoOndas = document.createElementNS(svgNS, "g");
+  grupoOndas.setAttribute("class", "onda-grupo");
+  const caminhos = [];
+
+  dados.series.forEach((serie, idx) => {
+    const cor = PALETA_ONDAS[idx % PALETA_ONDAS.length];
+    const gradId = "onda-grad-" + idx;
+    const grad = document.createElementNS(svgNS, "linearGradient");
+    grad.setAttribute("id", gradId);
+    grad.setAttribute("gradientUnits", "userSpaceOnUse");
+    grad.setAttribute("x1", 0); grad.setAttribute("y1", margemTopo);
+    grad.setAttribute("x2", 0); grad.setAttribute("y2", baseY);
+    const paradas = [[0, .75], [0.55, .32], [1, 0]];
+    paradas.forEach(([offset, opacidade]) => {
+      const stop = document.createElementNS(svgNS, "stop");
+      stop.setAttribute("offset", offset);
+      stop.setAttribute("stop-color", cor);
+      stop.setAttribute("stop-opacity", opacidade);
+      grad.appendChild(stop);
+    });
+    defs.appendChild(grad);
+
+    const pontosTopo = serie.valores.map((v, i) => [x(i), escalaY(v)]);
+    const caminhoArea = document.createElementNS(svgNS, "path");
+    caminhoArea.setAttribute("d", pathSuave(pontosTopo) + " L " + x(n-1) + "," + baseY + " L " + x(0) + "," + baseY + " Z");
+    caminhoArea.setAttribute("fill", "url(#" + gradId + ")");
+    caminhoArea.setAttribute("class", "onda-fill");
+
+    const caminhoLinha = document.createElementNS(svgNS, "path");
+    caminhoLinha.setAttribute("d", pathSuave(pontosTopo));
+    caminhoLinha.setAttribute("fill", "none");
+    caminhoLinha.setAttribute("stroke", cor);
+    caminhoLinha.setAttribute("stroke-width", "2.5");
+    caminhoLinha.setAttribute("stroke-linecap", "round");
+    caminhoLinha.setAttribute("class", "onda-brilho");
+    caminhoLinha.style.filter = "drop-shadow(0 0 5px " + cor + ") drop-shadow(0 0 2px " + cor + ")";
+
+    const titulo = document.createElementNS(svgNS, "title");
+    titulo.textContent = serie.tema + " no período: " + totalDaSerie(serie);
+    caminhoArea.appendChild(titulo.cloneNode(true));
+    caminhoLinha.appendChild(titulo);
+
+    const grupoSerie = document.createElementNS(svgNS, "g");
+    grupoSerie.setAttribute("class", "onda-serie");
+    grupoSerie.append(caminhoArea, caminhoLinha);
+    [0, n-1].forEach(i => {
+      const ponto = document.createElementNS(svgNS, "circle");
+      ponto.setAttribute("cx", x(i)); ponto.setAttribute("cy", escalaY(serie.valores[i]));
+      ponto.setAttribute("r", "3.5"); ponto.setAttribute("fill", cor);
+      ponto.style.filter = "drop-shadow(0 0 4px " + cor + ")";
+      grupoSerie.appendChild(ponto);
+    });
+
+    grupoSerie.addEventListener("mouseenter", () => {
+      grupoOndas.classList.add("onda-destacando");
+      grupoSerie.classList.add("onda-area-ativa");
+    });
+    grupoSerie.addEventListener("mouseleave", () => {
+      grupoOndas.classList.remove("onda-destacando");
+      grupoSerie.classList.remove("onda-area-ativa");
+    });
+    grupoOndas.appendChild(grupoSerie);
+    caminhos.push(grupoSerie);
+  });
+
+  svg.appendChild(grupoOndas);
+  alvo.appendChild(svg);
+  requestAnimationFrame(() => {
+    caminhos.forEach(c => c.classList.add("onda-serie-visivel"));
+  });
+
+  dados.series.forEach((serie, idx) => {
+    const chip = el("span","onda-chip");
+    const ponto = el("span","onda-dot");
+    ponto.style.background = PALETA_ONDAS[idx % PALETA_ONDAS.length];
+    chip.append(ponto, document.createTextNode(serie.tema));
+    chip.addEventListener("mouseenter", () => {
+      grupoOndas.classList.add("onda-destacando");
+      caminhos[idx].classList.add("onda-area-ativa");
+    });
+    chip.addEventListener("mouseleave", () => {
+      grupoOndas.classList.remove("onda-destacando");
+      caminhos[idx].classList.remove("onda-area-ativa");
+    });
+    legenda.append(chip);
+  });
+}
+
+function renderGraficoLinha(dados, comparacao){
+  const alvo = $("#onda-wrap"); alvo.replaceChildren();
+  const legenda = $("#onda-legend"); legenda.replaceChildren();
+
+  const largura = 760, altura = 240;
+  const margemEsq = 32, margemDir = 10, margemTopo = 16, margemBase = 28;
+  const areaLargura = largura - margemEsq - margemDir;
+  const areaAltura = altura - margemTopo - margemBase;
+  const n = dados.baldes.length;
+  const x = i => margemEsq + (n <= 1 ? areaLargura/2 : (areaLargura * i) / (n - 1));
+  const valoresComparacao = (comparacao && comparacao.series) ? comparacao.series.flatMap(s => s.valores) : [];
+  const maxValor = Math.max(1, ...dados.series.flatMap(serie => serie.valores), ...valoresComparacao);
+  const escalaY = v => margemTopo + areaAltura - (v / maxValor) * areaAltura;
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", "0 0 " + largura + " " + altura);
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.style.height = altura + "px";
+  svg.style.display = "block";
+
+  [0, 0.5, 1].forEach(f => {
+    const y = margemTopo + areaAltura - areaAltura * f;
+    const linha = document.createElementNS(svgNS, "line");
+    linha.setAttribute("x1", margemEsq); linha.setAttribute("x2", largura - margemDir);
+    linha.setAttribute("y1", y); linha.setAttribute("y2", y);
+    linha.setAttribute("stroke", "var(--line)");
+    svg.appendChild(linha);
+    const rotulo = document.createElementNS(svgNS, "text");
+    rotulo.setAttribute("x", margemEsq - 6); rotulo.setAttribute("y", y + 3);
+    rotulo.setAttribute("text-anchor","end"); rotulo.setAttribute("class","onda-eixo");
+    rotulo.textContent = f === 0.5 ? Math.floor(maxValor * f) : Math.round(maxValor * f);
+    svg.appendChild(rotulo);
+  });
+
+  const grupo = document.createElementNS(svgNS, "g");
+  const linhasPath = [];
+  dados.series.forEach((serie, idx) => {
+    const pontos = serie.valores.map((v, i) => [x(i), escalaY(v)]);
+    const caminho = document.createElementNS(svgNS, "path");
+    caminho.setAttribute("d", pontos.map((p, i) => (i === 0 ? "M " : "L ") + p[0] + "," + p[1]).join(" "));
+    caminho.setAttribute("fill", "none");
+    caminho.setAttribute("stroke", PALETA_ONDAS[idx % PALETA_ONDAS.length]);
+    caminho.setAttribute("stroke-width", "2.5");
+    caminho.setAttribute("class", "onda-linha");
+    const titulo = document.createElementNS(svgNS, "title");
+    titulo.textContent = serie.tema + " no período: " + totalDaSerie(serie);
+    caminho.appendChild(titulo);
+    caminho.addEventListener("mouseenter", () => { grupo.classList.add("onda-destacando"); caminho.classList.add("onda-area-ativa"); });
+    caminho.addEventListener("mouseleave", () => { grupo.classList.remove("onda-destacando"); caminho.classList.remove("onda-area-ativa"); });
+    grupo.appendChild(caminho);
+    linhasPath.push(caminho);
+
+    pontos.forEach((p, i) => {
+      const ponto = document.createElementNS(svgNS, "circle");
+      ponto.setAttribute("cx", p[0]); ponto.setAttribute("cy", p[1]); ponto.setAttribute("r","3");
+      ponto.setAttribute("fill", PALETA_ONDAS[idx % PALETA_ONDAS.length]);
+      ponto.setAttribute("class","onda-ponto onda-ponto-linha");
+      const t2 = document.createElementNS(svgNS, "title");
+      t2.textContent = serie.tema + " em " + labelBalde(dados.baldes[i], dados.granularidade) + ": " + serie.valores[i];
+      ponto.appendChild(t2);
+      grupo.appendChild(ponto);
+    });
+  });
+  if (comparacao && comparacao.series && comparacao.series.length){
+    dados.series.forEach((serie, idx) => {
+      const serieAnterior = comparacao.series.find(s => s.tema === serie.tema);
+      if (!serieAnterior) return;
+      const pontos = serieAnterior.valores.map((v, i) => [x(i), escalaY(v)]);
+      const caminho = document.createElementNS(svgNS, "path");
+      caminho.setAttribute("d", pontos.map((p, i) => (i === 0 ? "M " : "L ") + p[0] + "," + p[1]).join(" "));
+      caminho.setAttribute("fill", "none");
+      caminho.setAttribute("stroke", PALETA_ONDAS[idx % PALETA_ONDAS.length]);
+      caminho.setAttribute("stroke-width", "2");
+      caminho.setAttribute("stroke-dasharray", "5 4");
+      caminho.setAttribute("opacity", "0.55");
+      const titulo = document.createElementNS(svgNS, "title");
+      titulo.textContent = serie.tema + " no período anterior: " + totalDaSerie(serieAnterior);
+      caminho.appendChild(titulo);
+      grupo.appendChild(caminho);
+    });
+  }
+
+  svg.appendChild(grupo);
+  montarEixoXBase(svgNS, svg, dados, largura, altura, margemEsq, margemDir, x);
+  alvo.appendChild(svg);
+
+  dados.series.forEach((serie, idx) => {
+    const chip = el("span","onda-chip");
+    const ponto = el("span","onda-dot");
+    ponto.style.background = PALETA_ONDAS[idx % PALETA_ONDAS.length];
+    chip.append(ponto, document.createTextNode(serie.tema));
+    chip.addEventListener("mouseenter", () => { grupo.classList.add("onda-destacando"); linhasPath[idx].classList.add("onda-area-ativa"); });
+    chip.addEventListener("mouseleave", () => { grupo.classList.remove("onda-destacando"); linhasPath[idx].classList.remove("onda-area-ativa"); });
+    legenda.append(chip);
+  });
+  if (comparacao && comparacao.series && comparacao.series.length){
+    legenda.append(el("span","onda-chip","- - - período anterior"));
+  }
+}
+
+function renderGraficoPizza(dados){
+  const alvo = $("#onda-wrap"); alvo.replaceChildren();
+  const legenda = $("#onda-legend"); legenda.replaceChildren();
+
+  const totais = dados.series.map(serie => totalDaSerie(serie));
+  const somaTotal = totais.reduce((a,b) => a+b, 0);
+  const wrap = el("div","pizza-wrap");
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const tamanho = 220, raio = 95, cx = tamanho/2, cy = tamanho/2;
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", "0 0 " + tamanho + " " + tamanho);
+  svg.setAttribute("width", tamanho); svg.setAttribute("height", tamanho);
+
+  let anguloAtual = -Math.PI/2;
+  dados.series.forEach((serie, idx) => {
+    const valor = totais[idx];
+    if (!valor) return;
+    const fatia = (valor / somaTotal) * Math.PI * 2;
+    const anguloFim = anguloAtual + fatia;
+    const grande = fatia > Math.PI ? 1 : 0;
+    const x1 = cx + raio * Math.cos(anguloAtual), y1 = cy + raio * Math.sin(anguloAtual);
+    const x2 = cx + raio * Math.cos(anguloFim), y2 = cy + raio * Math.sin(anguloFim);
+    const caminho = document.createElementNS(svgNS, "path");
+    caminho.setAttribute("d", "M " + cx + "," + cy + " L " + x1 + "," + y1 + " A " + raio + "," + raio + " 0 " + grande + " 1 " + x2 + "," + y2 + " Z");
+    caminho.setAttribute("fill", PALETA_ONDAS[idx % PALETA_ONDAS.length]);
+    caminho.setAttribute("class","onda-fatia");
+    const titulo = document.createElementNS(svgNS, "title");
+    const pct = Math.round((valor / somaTotal) * 100);
+    titulo.textContent = serie.tema + ": " + valor + " (" + pct + "%)";
+    caminho.appendChild(titulo);
+    svg.appendChild(caminho);
+    anguloAtual = anguloFim;
+  });
+
+  wrap.appendChild(svg);
+  const listaLegenda = el("div","pizza-legend");
+  dados.series.forEach((serie, idx) => {
+    const valor = totais[idx];
+    const pct = somaTotal ? Math.round((valor / somaTotal) * 100) : 0;
+    const chip = el("span","onda-chip");
+    const ponto = el("span","onda-dot");
+    ponto.style.background = PALETA_ONDAS[idx % PALETA_ONDAS.length];
+    chip.append(ponto, document.createTextNode(serie.tema + " — " + valor + " (" + pct + "%)"));
+    listaLegenda.append(chip);
+  });
+  wrap.appendChild(listaLegenda);
+  alvo.appendChild(wrap);
+}
+
+function renderGraficoAtual(dados){
+  ultimoGraficoDados = dados;
+  const totalEl = $("#onda-total");
+  totalEl.textContent = dados.total ? dados.total + " atendimento" + (dados.total === 1 ? "" : "s") + " no período selecionado" : "";
+
+  if (!dados.baldes.length || !dados.series.length || !dados.total){
+    const alvo = $("#onda-wrap"); alvo.replaceChildren();
+    alvo.append(el("p","onda-vazio","Nenhum atendimento no assunto e período selecionados."));
+    $("#onda-legend").replaceChildren();
+    animar(alvo, "anim-entrada");
+    return;
+  }
+
+  if (tipoGrafico === "pizza") renderGraficoPizza(dados);
+  else if (tipoGrafico === "linha") renderGraficoLinha(dados, ultimoGraficoComparacao);
+  else renderGraficoOndas(dados);
+  animar($("#onda-wrap"), "anim-entrada");
+}
+
+function exportarCSV(){
+  if (!ultimoGraficoDados || !ultimoGraficoDados.baldes.length){
+    toast("Nada para exportar neste filtro.", "erro");
+    return;
+  }
+  const d = ultimoGraficoDados;
+  const linhas = [["Período", ...d.series.map(s => s.tema)].join(";")];
+  d.baldes.forEach((b, i) => {
+    linhas.push([labelBalde(b, d.granularidade), ...d.series.map(s => s.valores[i])].join(";"));
+  });
+  const blob = new Blob(["\uFEFF" + linhas.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "volumetria_atendimentos.csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast("CSV exportado.");
+}
+
+function popularFiltroTemas(temas){
+
+  const sel = $("#sup-tema");
+  const atual = sel.value || TODOS_OS_TEMAS;
+  sel.replaceChildren();
+  sel.append(new Option(TODOS_OS_TEMAS, TODOS_OS_TEMAS));
+  (temas || []).forEach(t => sel.append(new Option(t, t)));
+  sel.value = atual;
+}
+
+let limiteDados = { min: null, max: null };
+
+async function buscarVolumetria(tema, inicio, fim){
+  const params = new URLSearchParams();
+  if (tema && tema !== TODOS_OS_TEMAS) params.set("tema", tema);
+  if (inicio) params.set("inicio", inicio);
+  if (fim) params.set("fim", fim);
+  const r = await chamarSupervisor("/api/supervisor/grafico" + (params.toString() ? "?" + params.toString() : ""));
+  return r.json();
+}
+
+async function carregarGrafico(){
+  const tema = $("#sup-tema").value;
+  const inicio = $("#sup-data-ini").value;
+  const fim = $("#sup-data-fim").value;
+  try{
+    const dados = await buscarVolumetria(tema, inicio, fim);
+    popularFiltroTemas(dados.temas_disponiveis);
+    limiteDados.min = dados.min_data; limiteDados.max = dados.max_data;
+    if (!$("#sup-data-ini").value) $("#sup-data-ini").value = dados.inicio || "";
+    if (!$("#sup-data-fim").value) $("#sup-data-fim").value = dados.fim || "";
+
+    ultimoGraficoComparacao = null;
+    if ($("#sup-comparar").checked && dados.inicio && dados.fim){
+      const dIni = new Date(dados.inicio + "T12:00:00");
+      const dFim = new Date(dados.fim + "T12:00:00");
+      const dias = Math.round((dFim - dIni) / 86400000) + 1;
+      const fimAnterior = somarDias(dados.inicio, -1);
+      const inicioAnterior = somarDias(fimAnterior, -(dias - 1));
+      try{
+        ultimoGraficoComparacao = await buscarVolumetria(tema, inicioAnterior, fimAnterior);
+      } catch (e){ ultimoGraficoComparacao = null; }
+    }
+
+    renderGraficoAtual(dados);
+  } catch (e){}
+}
+
+function renderTabelaAnalistas(linhas){
+  const corpo = $("#sup-tabela"); corpo.replaceChildren();
+  linhas.forEach(l => {
+    const tr = el("tr");
+    tr.dataset.analista = l.analista;
+    tr.setAttribute("aria-current","false");
+    [l.analista, String(l.total), String(l.dashboard), String(l.salesforce), l.ultimo ? fmtData(l.ultimo) : "—"].forEach(v => {
+      tr.append(el("td", null, v));
+    });
+    tr.addEventListener("click", () => selecionarAnalista(l.analista));
+    corpo.append(tr);
+  });
+}
+
+async function selecionarAnalista(nome){
+  document.querySelectorAll("#sup-tabela tr").forEach(tr => tr.setAttribute("aria-current", String(tr.dataset.analista === nome)));
+  const d = $("#sup-detail"); d.replaceChildren();
+  d.append(el("h2", null, nome));
+  try{
+    const r = await chamarSupervisor("/api/supervisor/atendimentos?analista=" + encodeURIComponent(nome));
+    const corpo = await r.json();
+    if (!corpo.atendimentos.length){
+      d.append(el("p","empty","Nenhum atendimento registrado para este Analista."));
+      animar(d, "anim-entrada");
+      return;
+    }
+    const ul = el("ul","sup-atd");
+    corpo.atendimentos.forEach(a => {
+      const li = el("li");
+      li.append(el("div","when", fmtData(a.data) + (a.hora ? " · " + a.hora : "") + " · " + a.canal));
+      li.append(el("div","meta", a.offer + " · " + a.imovel));
+      li.append(el("div","meta", a.contato + " · " + a.tema));
+      li.append(el("p", null, a.resumo));
+      ul.append(li);
+    });
+    d.append(ul);
+    animar(d, "anim-entrada");
+  } catch (e){
+    if (!sessao) return;
+    d.append(el("p","empty","Não foi possível carregar os atendimentos."));
+    animar(d, "anim-entrada");
+  }
+}
+
+function renderKPIs(analistas, dadosGrafico){
+  const alvo = $("#sup-kpis");
+  if (!alvo) return;
+  alvo.replaceChildren();
+  const total = analistas.reduce((s,a) => s + a.total, 0);
+  const comAtendimento = analistas.filter(a => a.total > 0).length;
+  const media = comAtendimento ? (total / comAtendimento) : 0;
+  let temaTopo = "—";
+  if (dadosGrafico && dadosGrafico.series && dadosGrafico.series.length){
+    const somas = dadosGrafico.series.map(s => ({ tema: s.tema, total: s.valores.reduce((a,b) => a+b, 0) }));
+    somas.sort((a,b) => b.total - a.total);
+    if (somas[0] && somas[0].total > 0) temaTopo = somas[0].tema;
+  }
+  [["Total de atendimentos", String(total)], ["Média por Analista", media.toFixed(1)], ["Assunto mais frequente", temaTopo]].forEach(([rotulo, valor]) => {
+    const card = el("div","kpi-card");
+    card.append(el("span","valor", valor), el("span","rotulo", rotulo));
+    alvo.append(card);
+  });
+  animar(alvo, "anim-entrada");
+}
+
+async function carregarSupervisor(){
+  try{
+    const rA = await chamarSupervisor("/api/supervisor/analistas");
+    const analistas = (await rA.json()).analistas;
+    renderTabelaAnalistas(analistas);
+    $("#sup-data-ini").value = ""; $("#sup-data-fim").value = "";
+    $("#sup-tema").replaceChildren(); $("#sup-tema").append(new Option(TODOS_OS_TEMAS, TODOS_OS_TEMAS));
+    await carregarGrafico();
+    renderKPIs(analistas, ultimoGraficoDados);
+    const primeiro = analistas.find(a => a.total > 0);
+    if (primeiro) selecionarAnalista(primeiro.analista);
+  } catch (e){}
+}
+
+async function buscar(entrada){
+  const q = (entrada || "").trim();
+  if (!q){ mensagem("Digite sua busca","Informe a Offer, o ID do imóvel, o telefone, o e-mail ou o CPF do cliente."); return; }
+  mostrarEsqueleto();
+  try{
+    const r = await chamar("/api/busca", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q }) });
+    const corpo = await r.json();
+    if (r.status === 400){ mensagem("Busca não reconhecida", corpo.erro); return; }
+    if (!r.ok) throw new Error("erro " + r.status);
+    const lista = corpo.resultados;
+    if (lista.length === 0){ mensagem("Nenhum processo encontrado", naoEncontrado[corpo.tipo]); return; }
+    if (lista.length === 1){ await abrirOffer(lista[0].offer, lista[0].contato_id); return; }
+    escolher(lista);
+  } catch (e){
+    falhaConsulta();
+  }
+}
+
+function nodeContato(c){
+  const ok = atendido(c);
+  const b = el("button","node " + (ok ? "ok" : "no") + (c.papel === "alternativo" ? " ext-node" : " role-node"));
+  b.type = "button";
+  b.dataset.id = c.id;
+  b.setAttribute("aria-pressed","false");
+  b.append(
+    el("span","role", rotuloContato(c)),
+    el("span","name", c.nome)
+  );
+  const badge = el("span","badge " + (ok ? "ok" : "no"), (ok ? "✓ Atendido: SIM" : "✕ Atendido: NÃO"));
+  b.append(badge);
+  b.addEventListener("click", () => selecionar(c.id, true));
+  return b;
+}
+
+function nodeAdicionar(pai, qtd){
+  const b = el("button","add-node");
+  b.type = "button";
+  b.dataset.pai = pai.id;
+  b.setAttribute("aria-pressed","false");
+  b.setAttribute("aria-label","Adicionar contato alternativo de " + pai.nome);
+  b.append("+ Adicionar contato", el("span","cont", qtd + " de " + limiteAlternativos(pai.papel) + " contatos alternativos"));
+  b.addEventListener("click", () => formularioAlternativo(pai.id));
+  return b;
+}
+
+function renderOffer(){
+  const { cod, dados } = atual;
+  const out = $("#result"); out.replaceChildren();
+  const total = dados.contatos.length;
+  const feitos = dados.contatos.filter(atendido).length;
+
+  const head = el("section","offer-head");
+  const esq = el("div");
+  const linhaCod = el("div","offer-code");
+  linhaCod.append(document.createTextNode(cod));
+  const botaoCopiar = el("button","copiar-offer","Copiar");
+  botaoCopiar.type = "button";
+  botaoCopiar.addEventListener("click", () => copiarTexto(cod, botaoCopiar));
+  linhaCod.append(botaoCopiar);
+  esq.append(linhaCod, el("p","offer-meta", dados.imovel + " · ID do imóvel " + dados.id_imovel));
+  const prog = el("div","progress");
+  prog.append(el("strong",null, feitos + " de " + total + " contatos atendidos"));
+  const segs = el("div","segs");
+  dados.contatos.forEach(c => segs.append(el("span","seg" + (atendido(c) ? " ok" : ""))));
+  prog.append(segs);
+  head.append(esq, prog);
+
+  const layout = el("div","layout");
+  const card = el("section","flow-card");
+  card.append(el("h2","flow-title","Contatos qualificados no processo. Selecione um para ver o histórico."));
+  const flow = el("div","flow"); flow.id = "flow";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("class","wires"); svg.setAttribute("aria-hidden","true");
+  flow.append(svg);
+
+  const on = el("div","offer-node"); on.id = "n-offer";
+  on.append(el("div","c",cod));
+  flow.append(on);
+
+  const cols = el("div","cols");
+  ["comprador","corretor","vendedor"].forEach(p => {
+    const c = dados.contatos.find(x => x.papel === p);
+    if (!c) return;
+    const col = el("div","col");
+    col.append(nodeContato(c));
+    const filhos = dados.contatos.filter(x => x.pai === c.id);
+    const ext = el("div","ext");
+    filhos.forEach(f => ext.append(nodeContato(f)));
+    const limite = limiteAlternativos(c.papel);
+    if (filhos.length < limite){
+      ext.append(nodeAdicionar(c, filhos.length));
+    } else {
+      ext.append(el("p","add-limit","Limite de " + limite + " contatos alternativos atingido."));
+    }
+    col.append(ext);
+    cols.append(col);
+  });
+  flow.append(cols);
+  card.append(flow);
+
+  const detail = el("aside","detail"); detail.id = "detail";
+  detail.setAttribute("aria-label","Detalhes do contato");
+  layout.append(card, detail);
+  out.append(head, layout);
+  animar(out, "anim-entrada");
+
+  requestAnimationFrame(desenharLinhas);
+  if (window.ResizeObserver){ new ResizeObserver(desenharLinhas).observe(flow); }
+}
+
+function desenharLinhas(){
+  const flow = $("#flow"); if (!flow || !atual) return;
+  const svg = $(".wires", flow);
+  const fr = flow.getBoundingClientRect();
+  svg.setAttribute("width", fr.width); svg.setAttribute("height", fr.height);
+  svg.setAttribute("viewBox", "0 0 " + fr.width + " " + fr.height);
+  svg.replaceChildren();
+
+  const P = e => {
+    const r = e.getBoundingClientRect();
+    return { l:r.left-fr.left, t:r.top-fr.top, b:r.bottom-fr.top, cx:(r.left+r.right)/2-fr.left, cy:(r.top+r.bottom)/2-fr.top };
+  };
+  const NS = "http://www.w3.org/2000/svg";
+  const add = (d, ok) => { const p = document.createElementNS(NS,"path"); p.setAttribute("d",d); p.setAttribute("class", ok ? "ok" : "no"); svg.append(p); };
+  const statusDe = n => atual.dados.contatos.find(c => c.id === n.dataset.id);
+  const largo = fr.width >= 720;
+
+  const off = P($("#n-offer"));
+  const papeis = [...flow.querySelectorAll(".role-node")];
+
+  papeis.forEach(n => {
+    const c = P(n), ok = atendido(statusDe(n));
+    if (largo){
+      const my = (off.b + c.t) / 2;
+      add("M"+off.cx+" "+off.b+" C"+off.cx+" "+my+" "+c.cx+" "+my+" "+c.cx+" "+c.t, ok);
+    } else {
+      const tx = off.l + 14;
+      add("M"+tx+" "+off.b+" V"+c.cy+" H"+c.l, ok);
+    }
+  });
+
+  papeis.forEach(pn => {
+    const p = P(pn), tx = p.l + 14;
+    const col = pn.closest(".col");
+    col.querySelectorAll(".ext-node").forEach(cn => {
+      const c = P(cn);
+      add("M"+tx+" "+p.b+" V"+c.cy+" H"+c.l, atendido(statusDe(cn)));
+    });
+  });
+}
+
+function formularioAlternativo(paiId){
+  const pai = atual.dados.contatos.find(x => x.id === paiId);
+  document.querySelectorAll(".node").forEach(n => n.setAttribute("aria-pressed","false"));
+  document.querySelectorAll(".add-node").forEach(n => n.setAttribute("aria-pressed", String(n.dataset.pai === paiId)));
+  const d = $("#detail"); d.replaceChildren();
+
+  d.append(el("h2",null,"Adicionar contato"));
+  d.append(el("p","who","Pessoa alternativa que entrou em contato em nome de " + pai.nome));
+  d.append(el("p","callout","Antes de compartilhar informações do processo, envie o e-mail de confirmação a " + pai.nome + " autorizando a procuração."));
+
+  const form = el("form","altform"); form.noValidate = true; form.autocomplete = "off";
+  const campos = [
+    { chave:"nome", rotulo:"Nome", obrig:true, tipo:"text", ph:"Nome completo", ac:"off" },
+    { chave:"cpf", rotulo:"CPF", obrig:false, tipo:"text", ph:"000.000.000-00", ac:"off" },
+    { chave:"email", rotulo:"E-mail", obrig:false, tipo:"email", ph:"nome@exemplo.com", ac:"off" },
+    { chave:"telefone", rotulo:"Número de telefone", obrig:false, tipo:"tel", ph:"(11) 98765-4321", ac:"off" }
+  ];
+  const refs = {};
+  campos.forEach(cp => {
+    const box = el("div","field");
+    const lab = el("label",null,cp.rotulo + " ");
+    lab.htmlFor = "alt-" + cp.chave;
+    lab.append(el("span","opt", cp.obrig ? "(obrigatório)" : "(opcional)"));
+    const inp = el("input"); inp.id = "alt-" + cp.chave; inp.type = cp.tipo; inp.placeholder = cp.ph;
+    inp.autocomplete = cp.ac; inp.maxLength = 120; inp.spellcheck = false;
+    const err = el("p","err"); err.id = "err-" + cp.chave; err.hidden = true;
+    inp.setAttribute("aria-describedby", err.id);
+    box.append(lab, inp, err);
+    form.append(box);
+    refs[cp.chave] = { inp, err };
+  });
+
+  const erroGeral = el("p","form-err"); erroGeral.setAttribute("role","alert"); erroGeral.hidden = true;
+  const btns = el("div","btns");
+  const salvar = el("button","btn","Salvar contato"); salvar.type = "submit";
+  const cancelar = el("button","btn secondary","Cancelar"); cancelar.type = "button";
+  cancelar.addEventListener("click", () => selecionar(paiId, false));
+  btns.append(salvar, cancelar);
+  form.append(erroGeral, btns);
+  d.append(form);
+
+  const limpar = () => {
+    erroGeral.hidden = true;
+    Object.values(refs).forEach(r => { r.err.hidden = true; r.inp.removeAttribute("aria-invalid"); });
+  };
+  const erroCampo = (chave, msg) => {
+    const r = refs[chave]; r.err.textContent = msg; r.err.hidden = false;
+    r.inp.setAttribute("aria-invalid","true"); r.inp.focus();
+  };
+  Object.values(refs).forEach(r => r.inp.addEventListener("input", () => { r.err.hidden = true; r.inp.removeAttribute("aria-invalid"); }));
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    limpar();
+    const valores = {};
+    Object.keys(refs).forEach(k => valores[k] = refs[k].inp.value.trim());
+    if (!valores.nome){ erroCampo("nome","Informe o nome do contato."); return; }
+    salvar.disabled = true; salvar.textContent = "Salvando…";
+    try{
+      const r = await chamar("/api/offers/" + encodeURIComponent(atual.cod) + "/alternativos", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pai_id: paiId, ...valores })
+      });
+      const corpo = await r.json();
+      if (r.status === 201){
+        atual.dados = corpo.dados;
+        renderOffer();
+        selecionar(corpo.novo_id, false);
+        toast("Contato adicionado com sucesso.");
+        return;
+      }
+      if (corpo.campo && refs[corpo.campo]) erroCampo(corpo.campo, corpo.erro);
+      else { erroGeral.textContent = corpo.erro || "Não foi possível adicionar o contato."; erroGeral.hidden = false; }
+    } catch (err){
+      if (!sessao) return;
+      erroGeral.textContent = "O servidor não respondeu. Confira se o app.py está rodando e tente de novo.";
+      erroGeral.hidden = false;
+    }
+    salvar.disabled = false; salvar.textContent = "Salvar contato";
+  });
+  animar(d, "anim-entrada");
+  refs.nome.inp.focus();
+}
+
+function formularioAtendimento(contatoId){
+  const c = atual.dados.contatos.find(x => x.id === contatoId);
+  const pai = c.pai ? atual.dados.contatos.find(x => x.id === c.pai) : null;
+  const d = $("#detail"); d.replaceChildren();
+
+  d.append(el("h2",null,"Registrar atendimento"));
+  d.append(el("p","who", c.nome + " · " + descricaoContato(c, pai)));
+  d.append(el("p","callout","Registrando em nome de " + sessao.nome + ". A data e a hora são preenchidas automaticamente. Não inclua CPF completo, dados de cartão ou senhas no resumo."));
+
+  const form = el("form","altform"); form.noValidate = true; form.autocomplete = "off";
+  const refs = {};
+  const campo = (chave, rotuloTxt, obrig, criar) => {
+    const box = el("div","field");
+    const lab = el("label",null,rotuloTxt + " ");
+    lab.htmlFor = "reg-" + chave;
+    lab.append(el("span","opt", obrig ? "(obrigatório)" : "(opcional)"));
+    const ctrl = criar(); ctrl.id = "reg-" + chave;
+    const err = el("p","err"); err.id = "err-reg-" + chave; err.hidden = true;
+    ctrl.setAttribute("aria-describedby", err.id);
+    box.append(lab, ctrl, err);
+    form.append(box);
+    refs[chave] = { inp: ctrl, err };
+    return box;
+  };
+
+  campo("canal","Canal do atendimento",true,() => {
+    const s = el("select");
+    [["","Selecione"],["Telefone","Telefone"],["Chat","Chat"],["E-mail","E-mail"]].forEach(([v,t]) => {
+      const o = el("option",null,t); o.value = v; s.append(o);
+    });
+    return s;
+  });
+  const fs = el("fieldset","temas");
+  const lg = el("legend",null,"Tema da conversa ");
+  lg.append(el("span","opt","(obrigatório, escolha um)"));
+  const lista = el("div","tema-lista");
+  let primeiroTema = null;
+  (atual.dados.temas || []).forEach(t => {
+    const lab = el("label","tema-op");
+    const rd = el("input"); rd.type = "radio"; rd.name = "tema"; rd.value = t;
+    if (!primeiroTema) primeiroTema = rd;
+    lab.append(rd, el("span",null,t));
+    lista.append(lab);
+  });
+  const errTema = el("p","err"); errTema.id = "err-reg-tema"; errTema.hidden = true;
+  fs.append(lg, lista, errTema);
+  const boxTema = el("div","field"); boxTema.append(fs);
+  form.append(boxTema);
+  refs.tema = { inp: fs, err: errTema, focar: primeiroTema };
+
+  campo("ticket","Número do ticket no Salesforce",false,() => {
+    const i = el("input"); i.type = "text"; i.placeholder = "Ex.: TK-485240"; i.maxLength = 30; i.spellcheck = false; i.autocomplete = "off";
+    return i;
+  });
+  const boxResumo = campo("resumo","O que foi conversado",true,() => {
+    const t = el("textarea"); t.rows = 6; t.maxLength = 1500;
+    t.placeholder = "Resuma a dúvida do cliente e o que foi orientado.";
+    return t;
+  });
+  const contador = el("p","count","0 / 1500");
+  boxResumo.append(contador);
+  refs.resumo.inp.addEventListener("input", () => { contador.textContent = refs.resumo.inp.value.length + " / 1500"; });
+  Object.values(refs).forEach(r => {
+    ["input","change"].forEach(ev => r.inp.addEventListener(ev, () => { r.err.hidden = true; r.inp.removeAttribute("aria-invalid"); }));
+  });
+
+  const erroGeral = el("p","form-err"); erroGeral.setAttribute("role","alert"); erroGeral.hidden = true;
+  const btns = el("div","btns");
+  const salvar = el("button","btn","Salvar registro"); salvar.type = "submit";
+  const cancelar = el("button","btn secondary","Cancelar"); cancelar.type = "button";
+  cancelar.addEventListener("click", () => selecionar(contatoId, false));
+  btns.append(salvar, cancelar);
+  form.append(erroGeral, btns);
+  d.append(form);
+
+  const limpar = () => {
+    erroGeral.hidden = true;
+    Object.values(refs).forEach(r => { r.err.hidden = true; r.inp.removeAttribute("aria-invalid"); });
+  };
+  const erroCampo = (chave, msg) => {
+    const r = refs[chave]; r.err.textContent = msg; r.err.hidden = false;
+    r.inp.setAttribute("aria-invalid","true"); (r.focar || r.inp).focus();
+  };
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    limpar();
+    const v = { canal: refs.canal.inp.value, tema: (form.querySelector('input[name="tema"]:checked') || {}).value || "", ticket: refs.ticket.inp.value.trim(), resumo: refs.resumo.inp.value.trim() };
+    if (!v.canal){ erroCampo("canal","Escolha o canal do atendimento."); return; }
+    if (!v.tema){ erroCampo("tema","Escolha o tema da conversa."); return; }
+    if (v.resumo.length < 10){ erroCampo("resumo","Descreva o que foi conversado (mínimo de 10 caracteres)."); return; }
+    salvar.disabled = true; salvar.textContent = "Salvando…";
+    try{
+      const r = await chamar("/api/offers/" + encodeURIComponent(atual.cod) + "/atendimentos", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contato_id: contatoId, ...v })
+      });
+      const corpo = await r.json();
+      if (r.status === 201){
+        atual.dados = corpo.dados;
+        renderOffer();
+        selecionar(contatoId, false);
+        toast("Atendimento registrado com sucesso.");
+        return;
+      }
+      if (corpo.campo && refs[corpo.campo]) erroCampo(corpo.campo, corpo.erro);
+      else { erroGeral.textContent = corpo.erro || "Não foi possível salvar o registro."; erroGeral.hidden = false; }
+    } catch (err){
+      if (!sessao) return;
+      erroGeral.textContent = "O servidor não respondeu. Confira se o app.py está rodando e tente de novo.";
+      erroGeral.hidden = false;
+    }
+    salvar.disabled = false; salvar.textContent = "Salvar registro";
+  });
+  animar(d, "anim-entrada");
+  refs.canal.inp.focus();
+}
+
+function formularioClassificacao(contatoId){
+  const c = atual.dados.contatos.find(x => x.id === contatoId);
+  const pai = atual.dados.contatos.find(x => x.id === c.pai);
+  const d = $("#detail"); d.replaceChildren();
+
+  d.append(el("h2",null,"Classificar contato"));
+  d.append(el("p","who", c.nome + " · contato alternativo de " + pai.nome));
+  d.append(el("p","callout","Dê um nome que ajude a identificar quem é essa pessoa no processo, como Irmã do comprador. Em branco, volta para “Contato alternativo”."));
+
+  const form = el("form","altform"); form.noValidate = true; form.autocomplete = "off";
+  const box = el("div","field");
+  const lab = el("label",null,"Classificação do contato "); lab.htmlFor = "cls-texto";
+  lab.append(el("span","opt","(opcional)"));
+  const inp = el("input"); inp.id = "cls-texto"; inp.type = "text"; inp.maxLength = 40; inp.spellcheck = false;
+  inp.autocomplete = "off"; inp.placeholder = "Ex.: Irmã do comprador"; inp.value = c.classificacao || "";
+  const err = el("p","err"); err.id = "err-cls"; err.hidden = true; inp.setAttribute("aria-describedby", err.id);
+  box.append(lab, inp, err); form.append(box);
+
+  const erroGeral = el("p","form-err"); erroGeral.setAttribute("role","alert"); erroGeral.hidden = true;
+  const btns = el("div","btns");
+  const salvar = el("button","btn","Salvar"); salvar.type = "submit";
+  const cancelar = el("button","btn secondary","Cancelar"); cancelar.type = "button";
+  cancelar.addEventListener("click", () => selecionar(contatoId, false));
+  btns.append(salvar, cancelar);
+  if (c.classificacao){
+    const padrao = el("button","btn secondary","Restaurar padrão"); padrao.type = "button";
+    padrao.addEventListener("click", () => enviar(""));
+    btns.append(padrao);
+  }
+  form.append(erroGeral, btns);
+  d.append(form);
+  inp.addEventListener("input", () => { err.hidden = true; inp.removeAttribute("aria-invalid"); });
+
+  async function enviar(texto){
+    err.hidden = true; erroGeral.hidden = true; inp.removeAttribute("aria-invalid");
+    salvar.disabled = true;
+    try{
+      const r = await chamar("/api/offers/" + encodeURIComponent(atual.cod) + "/contatos/" + encodeURIComponent(contatoId) + "/classificacao", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classificacao: texto })
+      });
+      const corpo = await r.json();
+      if (r.ok){
+        atual.dados = corpo.dados;
+        renderOffer();
+        selecionar(contatoId, false);
+        toast("Classificação atualizada.");
+        return;
+      }
+      if (corpo.campo){ err.textContent = corpo.erro; err.hidden = false; inp.setAttribute("aria-invalid","true"); inp.focus(); }
+      else { erroGeral.textContent = corpo.erro || "Não foi possível salvar."; erroGeral.hidden = false; }
+    } catch (e){
+      if (!sessao) return;
+      erroGeral.textContent = "O servidor não respondeu. Confira se o app.py está rodando e tente de novo.";
+      erroGeral.hidden = false;
+    }
+    salvar.disabled = false;
+  }
+  form.addEventListener("submit", e => { e.preventDefault(); enviar(inp.value.trim()); });
+  animar(d, "anim-entrada");
+  inp.focus(); inp.select();
+}
+
+function selecionar(id, rolar){
+  const c = atual.dados.contatos.find(x => x.id === id);
+  document.querySelectorAll(".node").forEach(n => n.setAttribute("aria-pressed", String(n.dataset.id === id)));
+  document.querySelectorAll(".add-node").forEach(n => n.setAttribute("aria-pressed","false"));
+  const d = $("#detail"); d.replaceChildren();
+
+  const pai = c.pai ? atual.dados.contatos.find(x => x.id === c.pai) : null;
+  const papelTxt = descricaoContato(c, pai);
+  const partes = [papelTxt, c.telefone, c.email, c.cpf ? "CPF " + c.cpf : ""].filter(Boolean);
+  d.append(el("h2",null,c.nome));
+  d.append(el("p","who", partes.join(" · ")));
+
+  const ok = atendido(c);
+  const ans = el("div","answer " + (ok ? "ok" : "no"));
+  const dias = c.ultimo_atendimento_dias;
+  const txtDias = ok ? "Já atendido · último atendimento " + (dias === 0 ? "hoje" : "há " + dias + " dia" + (dias === 1 ? "" : "s")) : "Ainda sem atendimento nesta Offer";
+  ans.append(el("span","big", ok ? "SIM" : "NÃO"), el("span","q",txtDias));
+  d.append(ans);
+
+  const barra = el("div","regbar");
+  const reg = el("button","btn","+ Registrar atendimento"); reg.type = "button";
+  reg.addEventListener("click", () => formularioAtendimento(c.id));
+  barra.append(reg);
+  if (c.papel === "alternativo"){
+    const cls = el("button","btn secondary","Alterar classificação"); cls.type = "button";
+    cls.addEventListener("click", () => formularioClassificacao(c.id));
+    barra.append(cls);
+  }
+  d.append(barra);
+
+  if (!ok){
+    d.append(el("p","empty","Nenhum atendimento registrado para este contato nesta Offer."));
+  } else {
+    const analistas = [...new Set(c.atendimentos.map(a => a.analista))];
+    d.append(el("h3",null, analistas.length > 1 ? "Analistas que atenderam" : "Analista que atendeu"));
+    const tp = el("div","tags");
+    analistas.forEach(a => tp.append(el("span","tag person",a)));
+    d.append(tp);
+
+    const contagem = new Map();
+    c.atendimentos.forEach(a => contagem.set(a.tema, (contagem.get(a.tema) || 0) + 1));
+    d.append(el("h3",null,"Tratativas conduzidas"));
+    const ta = el("div","tags");
+    [...contagem].sort((x,y) => y[1] - x[1]).forEach(([tema, n]) => ta.append(el("span","tag", n > 1 ? tema + " (" + n + ")" : tema)));
+    d.append(ta);
+
+    d.append(el("h3",null,"Histórico de atendimentos"));
+    const ul = el("ul","hist");
+    c.atendimentos.slice().sort((a,b) => (b.data + (b.hora || "")).localeCompare(a.data + (a.hora || ""))).forEach(a => {
+      const li = el("li");
+      const quando = el("div","when", fmtData(a.data) + (a.hora ? " · " + a.hora : "") + " · " + a.canal);
+      const manual = a.origem === "dashboard";
+      const origemLinha = el("div","origin-line");
+      origemLinha.append(el("span","src" + (manual ? " man" : ""), manual ? "Registro no dashboard" : "Salesforce"));
+      const tg = el("div","tags"); tg.append(el("span","tag",a.tema));
+      const meta = el("div","meta");
+      meta.append((a.ticket || "sem ticket") + " · ");
+      meta.append(el("span","analista-badge",a.analista));
+      li.append(quando, origemLinha, tg, meta, el("p","txt",a.resumo));
+      ul.append(li);
+    });
+    d.append(ul);
+  }
+
+  d.append(el("p","notice","Demonstração: dados simulados, entregues pela API em Python (dados pessoais censurados no servidor). Contatos e registros adicionados ficam guardados só enquanto o app.py estiver rodando."));
+
+  animar(d, "anim-entrada");
+  if (rolar && window.matchMedia("(max-width:980px)").matches){
+    d.scrollIntoView({block:"nearest"});
+  }
+}
+
+$("#form").addEventListener("submit", e => { e.preventDefault(); buscar($("#busca").value); });
+document.querySelectorAll(".chip-btn").forEach(b => b.addEventListener("click", () => {
+  $("#busca").value = b.dataset.q; buscar(b.dataset.q);
+}));
+if (document.fonts && document.fonts.ready){ document.fonts.ready.then(desenharLinhas); }
+window.addEventListener("resize", desenharLinhas);
+
+$("#form-login").addEventListener("submit", async e => {
+  e.preventDefault();
+  const erro = $("#login-erro"); erro.hidden = true;
+  const email = $("#login-email").value.trim(), senha = $("#login-senha").value;
+  if (!email || !senha){ erro.textContent = "Informe o e-mail e a senha."; erro.hidden = false; return; }
+  const btn = $("#login-btn"); btn.disabled = true; btn.textContent = "Entrando…";
+  try{
+    const r = await fetch("/api/login", {
+      method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, senha })
+    });
+    const corpo = await r.json();
+    if (r.ok){ $("#login-senha").value = ""; entrar(corpo); }
+    else { erro.textContent = corpo.erro || "Não foi possível entrar."; erro.hidden = false; }
+  } catch (err){
+    erro.textContent = "O servidor não respondeu. Confira se o app.py está rodando e tente de novo."; erro.hidden = false;
+  }
+  btn.disabled = false; btn.textContent = "Entrar";
+});
+$("#sair").addEventListener("click", async () => {
+  try{ await fetch("/api/logout", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" }); } catch (e){}
+  mostrarLogin();
+});
+$("#sup-sair").addEventListener("click", async () => {
+  try{ await fetch("/api/logout", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: "{}" }); } catch (e){}
+  mostrarLogin();
+});
+$("#sup-aplicar").addEventListener("click", carregarGrafico);
+$("#sup-comparar").addEventListener("change", carregarGrafico);
+$("#sup-exportar").addEventListener("click", exportarCSV);
+document.querySelectorAll("#tipo-grafico [data-tipo]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#tipo-grafico [data-tipo]").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+    tipoGrafico = btn.dataset.tipo;
+    if (ultimoGraficoDados) renderGraficoAtual(ultimoGraficoDados);
+  });
+});
+$("#sup-tema").addEventListener("change", carregarGrafico);
+document.querySelectorAll("[data-preset]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const preset = btn.dataset.preset;
+    if (preset === "tudo"){
+      $("#sup-data-ini").value = limiteDados.min || "";
+      $("#sup-data-fim").value = limiteDados.max || hojeISO();
+    } else {
+      const hoje = hojeISO();
+      const dias = parseInt(preset, 10);
+      $("#sup-data-fim").value = hoje;
+      $("#sup-data-ini").value = somarDias(hoje, -dias);
+    }
+    carregarGrafico();
+  });
+});
+$("#app-ir-supervisor").addEventListener("click", () => {
+  mostrarPainelSupervisor();
+  carregarSupervisor();
+});
+$("#sup-ir-offers").addEventListener("click", () => {
+  mostrarApp();
+  $("#busca").value = "";
+  telaInicial();
+  atualizarSidebarRecentes();
+  $("#busca").focus();
+});
+document.querySelectorAll(".tema-toggle").forEach(b => b.addEventListener("click", alternarTema));
+atualizarBotoesTema();
+document.addEventListener("keydown", e => {
+  if (e.key !== "/") return;
+  const ativo = document.activeElement;
+  const emCampo = ativo && ["INPUT","TEXTAREA","SELECT"].includes(ativo.tagName);
+  if (emCampo || $("#app").hidden) return;
+  e.preventDefault();
+  $("#busca").focus();
+});
+
+iniciar();
+</script>
+</body>
+</html>
