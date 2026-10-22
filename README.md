@@ -36,7 +36,7 @@ Registrar, facilitar, localizar e simplificar.
 - [x] Atualização do número de atendimentos, média por analista e porcentagem de assuntos tratados
 
 ### versão 0.7
-- [ ] Possível integração com Salesforce (CRM origem)
+- [ ] Possível integração com 'Salesforce' (CRM origem)
 
 ### versão 0.8
 - [ ] Configuração do banco de dados para armazenamento das informações em paralelo com o CRM origem
