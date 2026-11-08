@@ -1,12 +1,14 @@
 import json
 import logging
 import re
-from datetime import date, datetime
-from http.cookies import CookieError, SimpleCookie
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlsplit
 
+from flask import Flask, Response, request
+from werkzeug.exceptions import HTTPException
+
+import armazenamento
+import usuarios
 from analistas import validar_analista
 from busca import BuscaInvalida, buscar
 from contatos_alternativos import ContatoInvalido, validar_classificacao, validar_novo_contato
@@ -18,15 +20,25 @@ from supervisor import atendimentos_do_analista, resumo_por_analista, volumetria
 from usuarios import (DURACAO_SESSAO, BloqueioTemporario, CredenciaisInvalidas, autenticar,
                       encerrar_sessao, obter_sessao)
 
-PASTA = Path(__file__).parent
+PASTA = Path(__file__).resolve().parent
+FUSO_BRASILIA = timezone(timedelta(hours=-3))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
+
+app = Flask(__name__, static_folder=None)
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
+application = app
+
+
+def agora_br():
+    return datetime.now(FUSO_BRASILIA)
+
 
 def montar_resposta(offer: str):
     dados = buscar_offer(offer)
     if dados is None:
         return None
-    hoje = date.today()
+    hoje = agora_br().date()
     dados["temas"] = list(TEMAS)
     for contato in dados["contatos"]:
 
@@ -46,273 +58,302 @@ def montar_resposta(offer: str):
             contato["ultimo_atendimento_dias"] = None
     return dados
 
-class Handler(BaseHTTPRequestHandler):
 
-    def _enviar(self, status: int, corpo: bytes, tipo: str, cabecalhos=None):
-        self.send_response(status)
-        self.send_header("Content-Type", tipo)
-        self.send_header("Content-Length", str(len(corpo)))
-        self.send_header("Cache-Control", "no-store")
-        for nome, valor in (cabecalhos or []):
-            self.send_header(nome, valor)
-        self.end_headers()
-        self.wfile.write(corpo)
+def _json(status, dados):
+    resposta = Response(json.dumps(dados, ensure_ascii=False), status=status,
+                        content_type="application/json; charset=utf-8")
+    resposta.headers["Cache-Control"] = "no-store"
+    return resposta
 
-    def _json(self, status: int, dados: dict, cabecalhos=None):
-        corpo = json.dumps(dados, ensure_ascii=False).encode("utf-8")
-        self._enviar(status, corpo, "application/json; charset=utf-8", cabecalhos)
 
-    def log_message(self, formato, *args):
+def _https():
+    protocolo = request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip().lower()
+    return protocolo == "https" or request.is_secure
 
-        linha = self.requestline.split("?")[0]
-        logging.info('%s "%s" %s', self.address_string(), linha, args[1] if len(args) > 1 else "")
 
-    def _token(self):
-        cookie = SimpleCookie()
+def _definir_cookie(resposta, token, duracao):
+    resposta.set_cookie("sessao", token, max_age=duracao, httponly=True,
+                        samesite="Strict", path="/", secure=_https())
+
+
+def _origem_confiavel():
+    origem = request.headers.get("Origin")
+    if origem is None:
+        return True
+    host = request.headers.get("Host", "")
+    return origem in ("http://" + host, "https://" + host)
+
+
+def _ler_json():
+    try:
+        tamanho = request.content_length or 0
+        if not 0 < tamanho <= 8192:
+            return None
+        corpo = json.loads(request.get_data(cache=False).decode("utf-8"))
+        return corpo if isinstance(corpo, dict) else None
+    except (ValueError, UnicodeDecodeError):
+        return None
+
+
+def _exigir_login():
+    sessao = obter_sessao(request.cookies.get("sessao"))
+    if sessao is None:
+        return None, _json(401, {"erro": "Sessão expirada. Entre novamente."})
+    return sessao, None
+
+
+def _exigir_supervisor():
+    sessao, erro = _exigir_login()
+    if erro is not None:
+        return None, erro
+    if sessao.get("papel") != "supervisor":
+        return None, _json(403, {"erro": "Acesso restrito a supervisores."})
+    return sessao, None
+
+
+def _data_valida(texto):
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", texto or ""):
+        return None
+    try:
+        datetime.strptime(texto, "%Y-%m-%d")
+    except ValueError:
+        return None
+    return texto
+
+
+def _saude():
+    try:
+        armazenamento.obter("saude")
+        acessivel = True
+    except armazenamento.ErroArmazenamento:
+        acessivel = False
+    dados = {
+        "armazenamento": armazenamento.modo(),
+        "armazenamento_acessivel": acessivel,
+        "credenciais_analista_configuradas": usuarios.ANALISTA_CONFIGURADO,
+        "credenciais_supervisor_configuradas": usuarios.SUPERVISOR_CONFIGURADO,
+    }
+    dados["ok"] = (acessivel and usuarios.ANALISTA_CONFIGURADO and usuarios.SUPERVISOR_CONFIGURADO)
+    return _json(200, dados)
+
+
+def _pagina_inicial():
+    arquivo = PASTA / "index.html"
+    if not arquivo.exists():
+        return Response("Arquivo index.html não encontrado no servidor.", status=500,
+                        content_type="text/plain; charset=utf-8")
+    resposta = Response(arquivo.read_bytes(), status=200, content_type="text/html; charset=utf-8")
+    resposta.headers["Cache-Control"] = "no-store"
+    return resposta
+
+
+def _tratar_get(caminho):
+    if caminho in ("/", "/index.html"):
+        return _pagina_inicial()
+
+    if caminho == "/api/saude":
+        return _saude()
+
+    if caminho == "/api/sessao":
+        sessao = obter_sessao(request.cookies.get("sessao"))
+        if sessao:
+            return _json(200, {"logado": True, "nome": sessao["nome"], "email": sessao["email"],
+                               "papel": sessao["papel"]})
+        return _json(200, {"logado": False})
+
+    if caminho == "/api/meus-atendimentos":
+        sessao, erro = _exigir_login()
+        if erro is not None:
+            return erro
+        return _json(200, {"atendimentos": atendimentos_do_analista(sessao["nome"])})
+
+    if caminho == "/api/supervisor/analistas":
+        _, erro = _exigir_supervisor()
+        if erro is not None:
+            return erro
+        return _json(200, {"analistas": resumo_por_analista()})
+
+    if caminho == "/api/supervisor/grafico":
+        _, erro = _exigir_supervisor()
+        if erro is not None:
+            return erro
+        tema = request.args.get("tema", "")[:60]
+        inicio = _data_valida(request.args.get("inicio", "")[:10])
+        fim = _data_valida(request.args.get("fim", "")[:10])
+        return _json(200, volumetria(tema or None, inicio, fim))
+
+    if caminho == "/api/supervisor/atendimentos":
+        _, erro = _exigir_supervisor()
+        if erro is not None:
+            return erro
+        nome = request.args.get("analista", "")[:60]
+        return _json(200, {"analista": nome, "atendimentos": atendimentos_do_analista(nome)})
+
+    correspondencia = re.fullmatch(r"/api/offers/([A-Za-z0-9]{1,40})", caminho)
+    if correspondencia:
+        sessao, erro = _exigir_login()
+        if erro is not None:
+            return erro
+        offer = correspondencia.group(1)
+        dados = montar_resposta(offer)
+        logging.info("AUDITORIA usuario=%s offer=%s encontrada=%s", sessao["email"], offer, dados is not None)
+        if dados is None:
+            return _json(404, {"erro": "Offer não encontrada"})
+        return _json(200, dados)
+
+    return _json(404, {"erro": "Rota não encontrada"})
+
+
+def _tratar_post(caminho):
+    if not _origem_confiavel():
+        return _json(403, {"erro": "Origem não permitida."})
+
+    if caminho == "/api/login":
+        corpo = _ler_json()
+        if corpo is None:
+            return _json(400, {"erro": "Requisição inválida."})
         try:
-            cookie.load(self.headers.get("Cookie", ""))
-        except CookieError:
-            return None
-        item = cookie.get("sessao")
-        return item.value if item else None
+            token = autenticar(corpo.get("email"), corpo.get("senha"))
+        except BloqueioTemporario:
+            logging.info("AUDITORIA login bloqueado por excesso de tentativas")
+            return _json(429, {"erro": "Muitas tentativas. Aguarde alguns minutos e tente de novo."})
+        except CredenciaisInvalidas:
+            logging.info("AUDITORIA login recusado")
+            return _json(401, {"erro": "E-mail ou senha incorretos."})
+        sessao = obter_sessao(token)
+        logging.info("AUDITORIA login usuario=%s", sessao["email"])
+        resposta = _json(200, {"nome": sessao["nome"], "email": sessao["email"], "papel": sessao["papel"]})
+        _definir_cookie(resposta, token, DURACAO_SESSAO)
+        return resposta
 
-    def _exigir_login(self):
+    if caminho == "/api/logout":
+        token = request.cookies.get("sessao")
+        sessao = obter_sessao(token)
+        if sessao:
+            logging.info("AUDITORIA logout usuario=%s", sessao["email"])
+        encerrar_sessao(token)
+        resposta = _json(200, {"ok": True})
+        _definir_cookie(resposta, "", 0)
+        return resposta
 
-        sessao = obter_sessao(self._token())
-        if sessao is None:
-            self._json(401, {"erro": "Sessão expirada. Entre novamente."})
-        return sessao
+    sessao, erro = _exigir_login()
+    if erro is not None:
+        return erro
 
-    def _exigir_supervisor(self):
-        sessao = self._exigir_login()
-        if sessao is None:
-            return None
-        if sessao.get("papel") != "supervisor":
-            self._json(403, {"erro": "Acesso restrito a supervisores."})
-            return None
-        return sessao
-
-    def _origem_confiavel(self) -> bool:
-
-        origem = self.headers.get("Origin")
-        return origem is None or origem == "http://" + str(self.headers.get("Host", ""))
-
-    def _ler_json(self):
-
+    if caminho == "/api/busca":
+        corpo = _ler_json()
+        if corpo is None:
+            return _json(400, {"erro": "Requisição inválida."})
+        consulta = str(corpo.get("q", ""))[:80]
         try:
-            tamanho = int(self.headers.get("Content-Length", "0"))
-            if not 0 < tamanho <= 8192:
-                raise ValueError("tamanho inválido")
-            corpo = json.loads(self.rfile.read(tamanho).decode("utf-8"))
-            if not isinstance(corpo, dict):
-                raise ValueError("corpo inválido")
-            return corpo
-        except (ValueError, UnicodeDecodeError):
-            self._json(400, {"erro": "Requisição inválida."})
-            return None
+            tipo, resultados = buscar(consulta)
+        except BuscaInvalida as erro_busca:
+            return _json(400, {"erro": str(erro_busca)})
+        termo = consulta if tipo in ("offer", "imovel") else "[protegido]"
+        logging.info("AUDITORIA usuario=%s busca=%s termo=%s resultados=%d",
+                     sessao["email"], tipo, termo, len(resultados))
+        return _json(200, {"tipo": tipo, "resultados": resultados})
 
-    def do_GET(self):
-        caminho = unquote(urlsplit(self.path).path)
+    alternativos = re.fullmatch(r"/api/offers/([A-Za-z0-9]{1,40})/alternativos", caminho)
+    if alternativos:
+        corpo = _ler_json()
+        if corpo is None:
+            return _json(400, {"erro": "Requisição inválida."})
+        offer = alternativos.group(1)
+        pai_id = str(corpo.get("pai_id", ""))[:20]
+        try:
+            novo = validar_novo_contato(corpo)
+            novo_id = adicionar_alternativo(offer, pai_id, novo)
+        except ContatoInvalido as erro_contato:
+            return _json(400, {"erro": erro_contato.mensagem, "campo": erro_contato.campo})
+        except ErroContato as erro_contato:
+            return _json(erro_contato.status, {"erro": erro_contato.mensagem})
+        logging.info("AUDITORIA usuario=%s offer=%s acao=adicionar_contato_alternativo qualificado=%s novo=%s",
+                     sessao["email"], offer, pai_id, novo_id)
+        return _json(201, {"novo_id": novo_id, "dados": montar_resposta(offer)})
 
-        if caminho in ("/", "/index.html"):
-            arquivo = PASTA / "index.html"
-            if not arquivo.exists():
-                self._enviar(500, "Arquivo index.html não encontrado na pasta do app.py.".encode("utf-8"),
-                             "text/plain; charset=utf-8")
-                return
-            self._enviar(200, arquivo.read_bytes(), "text/html; charset=utf-8")
-            return
+    classificacao = re.fullmatch(r"/api/offers/([A-Za-z0-9]{1,40})/contatos/(alt\d{1,4})/classificacao", caminho)
+    if classificacao:
+        corpo = _ler_json()
+        if corpo is None:
+            return _json(400, {"erro": "Requisição inválida."})
+        offer, contato_id = classificacao.groups()
+        try:
+            texto = validar_classificacao(corpo)
+            classificar_alternativo(offer, contato_id, texto)
+        except ContatoInvalido as erro_contato:
+            return _json(400, {"erro": erro_contato.mensagem, "campo": erro_contato.campo})
+        except ErroContato as erro_contato:
+            return _json(erro_contato.status, {"erro": erro_contato.mensagem})
+        logging.info("AUDITORIA usuario=%s offer=%s acao=classificar_contato_alternativo contato=%s",
+                     sessao["email"], offer, contato_id)
+        return _json(200, {"dados": montar_resposta(offer)})
 
-        if caminho == "/api/sessao":
-            sessao = obter_sessao(self._token())
-            if sessao:
-                self._json(200, {"logado": True, "nome": sessao["nome"], "email": sessao["email"],
-                                 "papel": sessao["papel"]})
-            else:
-                self._json(200, {"logado": False})
-            return
+    atendimentos = re.fullmatch(r"/api/offers/([A-Za-z0-9]{1,40})/atendimentos", caminho)
+    if atendimentos:
+        corpo = _ler_json()
+        if corpo is None:
+            return _json(400, {"erro": "Requisição inválida."})
+        offer = atendimentos.group(1)
+        contato_id = str(corpo.get("contato_id", ""))[:20]
+        try:
+            registro = validar_registro(corpo)
+            agora = agora_br()
+            registro.update({"data": agora.strftime("%Y-%m-%d"), "hora": agora.strftime("%H:%M"),
+                             "analista": sessao["nome"], "origem": "dashboard"})
+            adicionar_atendimento(offer, contato_id, registro)
+        except RegistroInvalido as erro_registro:
+            return _json(400, {"erro": erro_registro.mensagem, "campo": erro_registro.campo})
+        except ErroContato as erro_contato:
+            return _json(erro_contato.status, {"erro": erro_contato.mensagem})
+        logging.info("AUDITORIA usuario=%s offer=%s acao=registrar_atendimento contato=%s canal=%s",
+                     sessao["email"], offer, contato_id, registro["canal"])
+        return _json(201, {"contato_id": contato_id, "dados": montar_resposta(offer)})
 
-        if caminho == "/api/meus-atendimentos":
-            sessao = self._exigir_login()
-            if sessao is None:
-                return
-            itens = atendimentos_do_analista(sessao["nome"])
-            self._json(200, {"atendimentos": itens})
-            return
+    return _json(404, {"erro": "Rota não encontrada"})
 
-        if caminho == "/api/supervisor/analistas":
-            sessao = self._exigir_supervisor()
-            if sessao is None:
-                return
-            self._json(200, {"analistas": resumo_por_analista()})
-            return
 
-        if caminho == "/api/supervisor/grafico":
-            sessao = self._exigir_supervisor()
-            if sessao is None:
-                return
-            parametros = parse_qs(urlsplit(self.path).query)
-            tema = parametros.get("tema", [""])[0][:60]
-            inicio = parametros.get("inicio", [""])[0][:10]
-            fim = parametros.get("fim", [""])[0][:10]
-            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", inicio):
-                inicio = None
-            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", fim):
-                fim = None
-            self._json(200, volumetria(tema or None, inicio, fim))
-            return
+@app.route("/", defaults={"caminho": ""}, methods=["GET", "POST"])
+@app.route("/<path:caminho>", methods=["GET", "POST"])
+def despachar(caminho):
+    caminho = "/" + caminho
+    if request.method == "GET":
+        return _tratar_get(caminho)
+    return _tratar_post(caminho)
 
-        if caminho == "/api/supervisor/atendimentos":
-            sessao = self._exigir_supervisor()
-            if sessao is None:
-                return
-            parametros = parse_qs(urlsplit(self.path).query)
-            nome = parametros.get("analista", [""])[0][:60]
-            self._json(200, {"analista": nome, "atendimentos": atendimentos_do_analista(nome)})
-            return
 
-        correspondencia = re.fullmatch(r"/api/offers/([A-Za-z0-9]{1,40})", caminho)
-        if correspondencia:
-            sessao = self._exigir_login()
-            if sessao is None:
-                return
-            offer = correspondencia.group(1)
-            dados = montar_resposta(offer)
-            logging.info("AUDITORIA usuario=%s offer=%s encontrada=%s", sessao["email"], offer, dados is not None)
-            if dados is None:
-                self._json(404, {"erro": "Offer não encontrada"})
-            else:
-                self._json(200, dados)
-            return
+@app.after_request
+def _cabecalhos_de_seguranca(resposta):
+    resposta.headers["X-Content-Type-Options"] = "nosniff"
+    resposta.headers["X-Frame-Options"] = "DENY"
+    resposta.headers["Referrer-Policy"] = "same-origin"
+    return resposta
 
-        self._json(404, {"erro": "Rota não encontrada"})
 
-    def do_POST(self):
-        caminho = urlsplit(self.path).path
-        if not self._origem_confiavel():
-            self._json(403, {"erro": "Origem não permitida."})
-            return
+@app.errorhandler(armazenamento.ArmazenamentoNaoConfigurado)
+def _armazenamento_nao_configurado(erro):
+    logging.error("Armazenamento não configurado neste ambiente.")
+    return _json(503, {"erro": "O servidor ainda não foi configurado: armazenamento ausente."})
 
-        if caminho == "/api/login":
-            corpo = self._ler_json()
-            if corpo is None:
-                return
-            try:
-                token = autenticar(corpo.get("email"), corpo.get("senha"))
-            except BloqueioTemporario:
-                logging.info("AUDITORIA login bloqueado por excesso de tentativas")
-                self._json(429, {"erro": "Muitas tentativas. Aguarde alguns minutos e tente de novo."})
-                return
-            except CredenciaisInvalidas:
-                logging.info("AUDITORIA login recusado")
-                self._json(401, {"erro": "E-mail ou senha incorretos."})
-                return
-            sessao = obter_sessao(token)
-            logging.info("AUDITORIA login usuario=%s", sessao["email"])
-            cookie = f"sessao={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age={DURACAO_SESSAO}"
-            self._json(200, {"nome": sessao["nome"], "email": sessao["email"], "papel": sessao["papel"]},
-                       [("Set-Cookie", cookie)])
-            return
 
-        if caminho == "/api/logout":
-            token = self._token()
-            sessao = obter_sessao(token)
-            if sessao:
-                logging.info("AUDITORIA logout usuario=%s", sessao["email"])
-            encerrar_sessao(token)
-            self._json(200, {"ok": True}, [("Set-Cookie", "sessao=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0")])
-            return
+@app.errorhandler(armazenamento.ErroArmazenamento)
+def _erro_de_armazenamento(erro):
+    logging.error("Erro de armazenamento: %s", erro)
+    return _json(503, {"erro": "Armazenamento temporariamente indisponível. Tente novamente em instantes."})
 
-        sessao = self._exigir_login()
-        if sessao is None:
-            return
 
-        if caminho == "/api/busca":
-            corpo = self._ler_json()
-            if corpo is None:
-                return
-            consulta = str(corpo.get("q", ""))[:80]
-            try:
-                tipo, resultados = buscar(consulta)
-            except BuscaInvalida as erro:
-                self._json(400, {"erro": str(erro)})
-                return
+@app.errorhandler(HTTPException)
+def _erro_http(erro):
+    mensagens = {404: "Rota não encontrada", 405: "Método não permitido.", 413: "Requisição grande demais."}
+    return _json(erro.code or 500, {"erro": mensagens.get(erro.code, "Requisição inválida.")})
 
-            termo = consulta if tipo in ("offer", "imovel") else "[protegido]"
-            logging.info("AUDITORIA usuario=%s busca=%s termo=%s resultados=%d",
-                         sessao["email"], tipo, termo, len(resultados))
-            self._json(200, {"tipo": tipo, "resultados": resultados})
-            return
 
-        alternativos = re.fullmatch(r"/api/offers/([A-Za-z0-9]{1,40})/alternativos", caminho)
-        if alternativos:
-            corpo = self._ler_json()
-            if corpo is None:
-                return
-            offer = alternativos.group(1)
-            pai_id = str(corpo.get("pai_id", ""))[:20]
-            try:
-                novo = validar_novo_contato(corpo)
-                novo_id = adicionar_alternativo(offer, pai_id, novo)
-            except ContatoInvalido as erro:
-                self._json(400, {"erro": erro.mensagem, "campo": erro.campo})
-                return
-            except ErroContato as erro:
-                self._json(erro.status, {"erro": erro.mensagem})
-                return
-            logging.info("AUDITORIA usuario=%s offer=%s acao=adicionar_contato_alternativo qualificado=%s novo=%s",
-                         sessao["email"], offer, pai_id, novo_id)
-            self._json(201, {"novo_id": novo_id, "dados": montar_resposta(offer)})
-            return
+@app.errorhandler(Exception)
+def _erro_inesperado(erro):
+    logging.exception("Erro inesperado")
+    return _json(500, {"erro": "Erro interno do servidor."})
 
-        atendimentos = re.fullmatch(r"/api/offers/([A-Za-z0-9]{1,40})/atendimentos", caminho)
-        if atendimentos:
-            corpo = self._ler_json()
-            if corpo is None:
-                return
-            offer = atendimentos.group(1)
-            contato_id = str(corpo.get("contato_id", ""))[:20]
-            try:
-                registro = validar_registro(corpo)
-                agora = datetime.now()
-                registro.update({"data": agora.strftime("%Y-%m-%d"), "hora": agora.strftime("%H:%M"),
-                                 "analista": sessao["nome"], "origem": "dashboard"})
-                adicionar_atendimento(offer, contato_id, registro)
-            except RegistroInvalido as erro:
-                self._json(400, {"erro": erro.mensagem, "campo": erro.campo})
-                return
-            except ErroContato as erro:
-                self._json(erro.status, {"erro": erro.mensagem})
-                return
-
-            logging.info("AUDITORIA usuario=%s offer=%s acao=registrar_atendimento contato=%s canal=%s",
-                         sessao["email"], offer, contato_id, registro["canal"])
-            self._json(201, {"contato_id": contato_id, "dados": montar_resposta(offer)})
-            return
-
-        classificacao = re.fullmatch(r"/api/offers/([A-Za-z0-9]{1,40})/contatos/(alt\d{1,4})/classificacao", caminho)
-        if classificacao:
-            corpo = self._ler_json()
-            if corpo is None:
-                return
-            offer, contato_id = classificacao.groups()
-            try:
-                texto = validar_classificacao(corpo)
-                classificar_alternativo(offer, contato_id, texto)
-            except ContatoInvalido as erro:
-                self._json(400, {"erro": erro.mensagem, "campo": erro.campo})
-                return
-            except ErroContato as erro:
-                self._json(erro.status, {"erro": erro.mensagem})
-                return
-            logging.info("AUDITORIA usuario=%s offer=%s acao=reclassificar_contato contato=%s",
-                         sessao["email"], offer, contato_id)
-            self._json(200, {"dados": montar_resposta(offer)})
-            return
-
-        self._json(404, {"erro": "Rota não encontrada"})
 
 if __name__ == "__main__":
-    servidor = ThreadingHTTPServer(("127.0.0.1", 8000), Handler)
     print("Dashboard rodando em http://127.0.0.1:8000  (Ctrl+C para encerrar)")
-    servidor.serve_forever()
+    app.run(host="127.0.0.1", port=8000, debug=False)
