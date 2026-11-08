@@ -2,6 +2,8 @@ import copy
 import re
 import threading
 
+from armazenamento import definir, obter
+
 LIMITE_ALTERNATIVOS = 3
 
 LIMITES_POR_PAPEL = {"corretor": 1}
@@ -9,7 +11,6 @@ PAPEIS_QUALIFICADOS = ("comprador", "vendedor", "corretor")
 
 def limite_alternativos(papel: str) -> int:
     return LIMITES_POR_PAPEL.get(papel, LIMITE_ALTERNATIVOS)
-_TRAVA = threading.Lock()
 
 class ErroContato(Exception):
 
@@ -26,7 +27,7 @@ def _cpf_ficticio(base9: str) -> str:
         n.append((soma * 10) % 11 % 10)
     return "".join(map(str, n))
 
-OFFERS = {
+_OFFERS_SEMENTE = {
     "Db0ZHelOoxLY3Inr3ZCU": {
         "imovel": "Apartamento 2 quartos · Pinheiros, São Paulo",
         "id_imovel": "890250358",
@@ -219,19 +220,38 @@ OFFERS = {
         ],
     },}
 
-def buscar_offer(offer: str):
+_TRAVA_LOCAL = threading.Lock()
 
-    with _TRAVA:
-        dados = OFFERS.get(offer)
-        return copy.deepcopy(dados) if dados else None
+
+def _carregar():
+    dados = obter("offers")
+    if dados is None:
+        dados = copy.deepcopy(_OFFERS_SEMENTE)
+        definir("offers", dados)
+    return dados
+
+
+def _salvar(dados):
+    definir("offers", dados)
+
+
+def obter_todas_offers():
+    return _carregar()
+
+
+def buscar_offer(offer: str):
+    dados = _carregar().get(offer)
+    return copy.deepcopy(dados) if dados else None
+
 
 def _digitos(texto: str) -> str:
     return re.sub(r"\D", "", texto or "")
 
-def adicionar_alternativo(offer: str, pai_id: str, novo: dict) -> str:
 
-    with _TRAVA:
-        dados = OFFERS.get(offer)
+def adicionar_alternativo(offer: str, pai_id: str, novo: dict) -> str:
+    with _TRAVA_LOCAL:
+        dados_todos = _carregar()
+        dados = dados_todos.get(offer)
         if dados is None:
             raise ErroContato("Offer não encontrada.", 404)
         contatos = dados["contatos"]
@@ -258,14 +278,17 @@ def adicionar_alternativo(offer: str, pai_id: str, novo: dict) -> str:
                    "telefone": novo["telefone"], "email": novo["email"], "cpf": novo["cpf"],
                    "atendimentos": []}
         contatos.append(contato)
+        _salvar(dados_todos)
         return contato["id"]
+
 
 MAX_ATENDIMENTOS_POR_CONTATO = 200
 
-def adicionar_atendimento(offer: str, contato_id: str, registro: dict) -> None:
 
-    with _TRAVA:
-        dados = OFFERS.get(offer)
+def adicionar_atendimento(offer: str, contato_id: str, registro: dict) -> None:
+    with _TRAVA_LOCAL:
+        dados_todos = _carregar()
+        dados = dados_todos.get(offer)
         if dados is None:
             raise ErroContato("Offer não encontrada.", 404)
         contato = next((c for c in dados["contatos"] if c["id"] == contato_id), None)
@@ -274,11 +297,13 @@ def adicionar_atendimento(offer: str, contato_id: str, registro: dict) -> None:
         if len(contato["atendimentos"]) >= MAX_ATENDIMENTOS_POR_CONTATO:
             raise ErroContato("Limite de registros atingido para este contato.", 409)
         contato["atendimentos"].append(registro)
+        _salvar(dados_todos)
+
 
 def classificar_alternativo(offer: str, contato_id: str, classificacao: str) -> None:
-
-    with _TRAVA:
-        dados = OFFERS.get(offer)
+    with _TRAVA_LOCAL:
+        dados_todos = _carregar()
+        dados = dados_todos.get(offer)
         if dados is None:
             raise ErroContato("Offer não encontrada.", 404)
         contato = next((c for c in dados["contatos"] if c["id"] == contato_id), None)
@@ -287,25 +312,27 @@ def classificar_alternativo(offer: str, contato_id: str, classificacao: str) -> 
         if contato["papel"] != "alternativo":
             raise ErroContato("Somente contatos alternativos podem ser reclassificados.", 400)
         contato["classificacao"] = classificacao
+        _salvar(dados_todos)
+
 
 def todos_atendimentos():
     resultado = []
-    with _TRAVA:
-        for offer, dados in OFFERS.items():
-            for contato in dados["contatos"]:
-                for atendimento in contato["atendimentos"]:
-                    resultado.append({
-                        "offer": offer,
-                        "imovel": dados["imovel"],
-                        "contato": contato["nome"],
-                        "contato_papel": contato["papel"],
-                        "data": atendimento["data"],
-                        "hora": atendimento.get("hora", ""),
-                        "canal": atendimento["canal"],
-                        "tema": atendimento.get("tema", ""),
-                        "ticket": atendimento.get("ticket", ""),
-                        "analista": atendimento["analista"],
-                        "origem": atendimento.get("origem", "salesforce"),
-                        "resumo": atendimento["resumo"],
-                    })
+    dados_todos = _carregar()
+    for offer, dados in dados_todos.items():
+        for contato in dados["contatos"]:
+            for atendimento in contato["atendimentos"]:
+                resultado.append({
+                    "offer": offer,
+                    "imovel": dados["imovel"],
+                    "contato": contato["nome"],
+                    "contato_papel": contato["papel"],
+                    "data": atendimento["data"],
+                    "hora": atendimento.get("hora", ""),
+                    "canal": atendimento["canal"],
+                    "tema": atendimento.get("tema", ""),
+                    "ticket": atendimento.get("ticket", ""),
+                    "analista": atendimento["analista"],
+                    "origem": atendimento.get("origem", "salesforce"),
+                    "resumo": atendimento["resumo"],
+                })
     return resultado

@@ -1,6 +1,6 @@
 import re
 
-from salesforce_simulado import OFFERS
+from salesforce_simulado import obter_todas_offers
 
 class BuscaInvalida(Exception):
     pass
@@ -103,9 +103,9 @@ _CASADORES = {
     "cpf": (_casador_cpf, "cpf"),
 }
 
-def _procurar(tipo: str, q: str):
+def _procurar(offers: dict, tipo: str, q: str):
     resultados = []
-    for codigo, dados in OFFERS.items():
+    for codigo, dados in offers.items():
         base = {"offer": codigo, "imovel": dados["imovel"], "id_imovel": dados["id_imovel"],
                 "contato_id": None, "contato": None}
         if tipo == "offer":
@@ -117,7 +117,7 @@ def _procurar(tipo: str, q: str):
     if tipo in _CASADORES:
         criar, campo = _CASADORES[tipo]
         casa = criar(q)
-        for codigo, dados in OFFERS.items():
+        for codigo, dados in offers.items():
             for contato in dados["contatos"]:
                 if casa(contato.get(campo) or ""):
                     resultados.append({"offer": codigo, "imovel": dados["imovel"],
@@ -130,8 +130,9 @@ def buscar(consulta: str):
 
     tipo = detectar_tipo(consulta)
     q = consulta.strip()
-    resultados = _procurar(tipo, q)
+    offers = obter_todas_offers()
+    resultados = _procurar(offers, tipo, q)
     if not resultados and tipo == "cpf" and re.fullmatch(r"\d{11}", q):
         tipo = "telefone"
-        resultados = _procurar(tipo, q)
+        resultados = _procurar(offers, tipo, q)
     return tipo, resultados
